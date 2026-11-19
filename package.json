@@ -1,0 +1,14 @@
+{
+  "name": "guesswork",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Unlimited five-letter (and 4/6/7-letter) word guessing game for the whole family. Static PWA.",
+  "scripts": {
+    "build:words": "node tools/build-words.js",
+    "build:artifact": "node tools/build-artifact.js",
+    "test": "node tools/test-logic.js"
+  },
+  "devDependencies": {
+    "wordlist-english": "1.2.1"
+  }
+}

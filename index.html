@@ -1,0 +1,1176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--ARTIFACT:START-->
+<title>Guesswork Unlimited</title>
+<!--ARTIFACT:END-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="description" content="Guess the hidden word in six tries. Unlimited games, family profiles, hints for kids and challenge codes.">
+<meta name="theme-color" content="#f4f6fa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#11151c" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Guesswork">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<!--ARTIFACT:RESUME-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one-screen app. Header, then a board that fills the free height, then a thumb-reach keyboard. */
+:root {
+  --bg: #f4f6fa;
+  --surface: #ffffff;
+  --ink: #17202e;
+  --muted: #5b6678;
+  --line: #d3d9e3;
+  --key: #dde2ea;
+  --key-ink: #17202e;
+  --accent: #3554d1;
+  --accent-ink: #ffffff;
+  --hit: #2e9b67;
+  --near: #d29d16;
+  --miss: #7b8698;
+  --tile-ink: #ffffff;
+  --danger: #c2413a;
+  --shadow: 0 10px 40px rgba(23, 32, 46, .18);
+  --p1: #3554d1; --p2: #c2413a; --p3: #2e9b67; --p4: #9b4fd1; --p5: #d27a16; --p6: #1f8ea8;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+  --tile: 58px;
+  --gap: 6px;
+  --radius: 10px;
+  color-scheme: light;
+}
+:root.contrast { --hit: #e9701c; --near: #3b8fe0; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11151c; --surface: #1b212b; --ink: #e9eef6; --muted: #9ba6b7; --line: #2e3745;
+    --key: #5a6375; --key-ink: #eef2f8; --accent: #7d97ff; --accent-ink: #0e1320;
+    --hit: #3aa874; --near: #cf9f22; --miss: #323946; --danger: #ef6b62;
+    --shadow: 0 10px 40px rgba(0, 0, 0, .5);
+    color-scheme: dark;
+  }
+  :root.contrast:not([data-theme="light"]) { --hit: #f08030; --near: #4a9ff0; }
+}
+:root[data-theme="dark"] {
+  --bg: #11151c; --surface: #1b212b; --ink: #e9eef6; --muted: #9ba6b7; --line: #2e3745;
+  --key: #5a6375; --key-ink: #eef2f8; --accent: #7d97ff; --accent-ink: #0e1320;
+  --hit: #3aa874; --near: #cf9f22; --miss: #323946; --danger: #ef6b62;
+  --shadow: 0 10px 40px rgba(0, 0, 0, .5);
+  color-scheme: dark;
+}
+:root.contrast[data-theme="dark"] { --hit: #f08030; --near: #4a9ff0; }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.45 var(--font-body);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+button { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.app {
+  height: 100%; display: flex; flex-direction: column;
+  max-width: 560px; margin: 0 auto;
+  padding-left: max(8px, env(safe-area-inset-left, 0px));
+  padding-right: max(8px, env(safe-area-inset-right, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Header */
+.top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding-block: 8px 4px; }
+.top .left, .top .right { display: flex; gap: 2px; align-items: center; }
+.top .right { justify-content: flex-end; }
+.brand { text-align: center; line-height: 1.05; min-width: 0; }
+.brand h1 { margin: 0; font: 800 clamp(22px, 6vw, 28px)/1 var(--font-display); letter-spacing: -.02em; }
+.brand h1 span { color: var(--accent); }
+.brand .meta { font-size: 11.5px; color: var(--muted); letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.icon-btn {
+  width: 38px; height: 40px; border: 0; border-radius: 12px; background: transparent; flex: none;
+  display: grid; place-items: center; cursor: pointer;
+}
+.icon-btn:active { background: var(--key); }
+.icon-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.who {
+  display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface);
+  border-radius: 999px; padding: 3px; cursor: pointer; max-width: 130px; min-width: 0;
+}
+.who .nm { display: none; }
+@media (min-width: 460px) { .who { padding-right: 10px; } .who .nm { display: block; } }
+.who .nm { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge {
+  width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  color: #fff; font: 800 14px/1 var(--font-display); background: var(--p1);
+}
+
+/* Board */
+.stage { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; position: relative; }
+.hintstrip { display: flex; gap: var(--gap); min-height: 0; }
+.hintstrip[hidden] { display: none !important; }
+.hintstrip div {
+  width: var(--tile); height: calc(var(--tile) * .42); border-radius: 6px;
+  display: grid; place-items: center; font: 700 calc(var(--tile) * .26)/1 var(--font-display);
+  color: var(--hit); border: 1.5px dashed var(--line);
+}
+.hintstrip div.on { border-color: var(--hit); }
+.board { display: grid; gap: var(--gap); }
+.row { display: grid; grid-template-columns: repeat(var(--cols), var(--tile)); gap: var(--gap); }
+.tile {
+  width: var(--tile); height: var(--tile); border-radius: var(--radius);
+  border: 2px solid var(--line); background: var(--surface);
+  display: grid; place-items: center; text-transform: uppercase;
+  font: 800 calc(var(--tile) * .52)/1 var(--font-display); user-select: none;
+  perspective: 400px;
+}
+.tile.filled { border-color: var(--muted); animation: pop .1s ease-out; }
+.tile.hit, .tile.near, .tile.miss { color: var(--tile-ink); border-color: transparent; }
+.tile.hit { background: var(--hit); }
+.tile.near { background: var(--near); }
+.tile.miss { background: var(--miss); }
+.tile.flip { animation: flip .5s ease-in-out both; }
+.row.shake { animation: shake .45s; }
+.tile.dance { animation: dance .5s ease-in-out both; }
+.tile.cursor { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+@keyframes pop { 50% { transform: scale(1.1); } }
+@keyframes flip {
+  0% { transform: rotateX(0); background: var(--surface); color: var(--ink); border-color: var(--muted); }
+  49% { transform: rotateX(90deg); background: var(--surface); color: var(--ink); border-color: var(--muted); }
+  51% { transform: rotateX(90deg); }
+  100% { transform: rotateX(0); }
+}
+@keyframes shake { 10%,90% { transform: translateX(-2px); } 20%,80% { transform: translateX(4px); } 30%,50%,70% { transform: translateX(-7px); } 40%,60% { transform: translateX(7px); } }
+@keyframes dance { 20% { transform: translateY(-40%); } 40% { transform: translateY(5%); } 60% { transform: translateY(-12%); } 80% { transform: translateY(2%); } }
+
+/* Toast */
+.toasts { position: absolute; top: 4px; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; z-index: 5; }
+.toast { background: var(--ink); color: var(--bg); padding: 10px 14px; border-radius: 10px; font-weight: 600; font-size: 14px; box-shadow: var(--shadow); max-width: 92%; text-align: center; animation: toastin .15s ease-out; }
+@keyframes toastin { from { opacity: 0; transform: translateY(-6px); } }
+
+/* Action bar */
+.actions { display: flex; justify-content: center; gap: 8px; padding-block: 4px 6px; min-height: 40px; }
+.chip {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+  padding: 7px 14px; font-weight: 600; font-size: 13.5px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center;
+}
+.chip svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.chip:disabled { opacity: .45; cursor: default; }
+.chip.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+
+/* Keyboard */
+.kb { display: flex; flex-direction: column; gap: 7px; padding-block: 2px 8px; user-select: none; touch-action: manipulation; }
+.kb .r { display: flex; gap: 5px; justify-content: center; }
+.key {
+  flex: 1 1 0; max-width: 48px; height: clamp(46px, 7.4vh, 58px); border: 0; border-radius: 8px;
+  background: var(--key); color: var(--key-ink); font: 700 clamp(15px, 4.4vw, 19px)/1 var(--font-body);
+  text-transform: uppercase; cursor: pointer; display: grid; place-items: center; padding: 0;
+  transition: background-color .2s;
+}
+.key.wide { flex: 1.55 1 0; max-width: 74px; font-size: 12.5px; letter-spacing: .04em; }
+.key svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.key:active { filter: brightness(.88); }
+.key.hit { background: var(--hit); color: var(--tile-ink); }
+.key.near { background: var(--near); color: var(--tile-ink); }
+.key.miss { background: var(--miss); color: var(--tile-ink); }
+.kb .spacer { flex: .5 1 0; max-width: 24px; }
+
+/* Dialogs */
+dialog {
+  border: 0; padding: 0; background: var(--surface); color: var(--ink);
+  border-radius: 18px; box-shadow: var(--shadow);
+  width: min(520px, calc(100% - 24px)); max-height: calc(100% - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  overflow: hidden;
+}
+dialog::backdrop { background: rgba(10, 14, 22, .55); }
+dialog:focus { outline: none; }
+dialog[open] { display: flex; flex-direction: column; animation: dlgin .18s ease-out; }
+@keyframes dlgin { from { opacity: 0; transform: translateY(12px) scale(.98); } }
+.dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 14px 6px 20px; }
+.dlg-head h2 { margin: 0; font: 800 22px/1.1 var(--font-display); letter-spacing: -.01em; text-wrap: balance; }
+.dlg-body { flex: 1 1 auto; min-height: 0; min-width: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 4px 20px 20px; display: flex; flex-direction: column; gap: 16px; }
+.dlg-body p { margin: 0; }
+.sec h3 { margin: 0 0 8px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+
+.seg { display: flex; background: var(--key); border-radius: 10px; padding: 3px; gap: 3px; }
+.seg button { flex: 1; border: 0; background: transparent; border-radius: 8px; padding: 8px 4px; font-weight: 600; cursor: pointer; font-size: 14px; }
+.seg button[aria-pressed="true"] { background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.opt { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-block: 10px; border-bottom: 1px solid var(--line); }
+.opt:last-child { border-bottom: 0; }
+.opt .t { font-weight: 600; }
+.opt .d { font-size: 12.5px; color: var(--muted); }
+.switch { position: relative; width: 48px; height: 28px; flex: none; }
+.switch input { opacity: 0; width: 100%; height: 100%; margin: 0; position: absolute; cursor: pointer; z-index: 1; }
+.switch span { position: absolute; inset: 0; background: var(--key); border-radius: 999px; transition: background .2s; }
+.switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .2s; }
+.switch input:checked + span { background: var(--hit); }
+.switch input:checked + span::after { transform: translateX(20px); }
+.switch input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.btn { border: 0; border-radius: 12px; padding: 12px 16px; font-weight: 700; font-size: 15px; cursor: pointer; background: var(--key); color: var(--key-ink); display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); }
+.btn.danger { background: transparent; color: var(--danger); border: 1px solid currentColor; }
+.btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.btns .btn { flex: 1 1 140px; }
+
+.example { display: flex; gap: 5px; margin: 6px 0 4px; }
+.example .tile { --tile: 40px; width: 40px; height: 40px; font-size: 21px; border-radius: 8px; }
+
+.statgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; }
+.statgrid b { display: block; font: 800 28px/1.1 var(--font-display); font-variant-numeric: tabular-nums; }
+.statgrid span { font-size: 11.5px; color: var(--muted); line-height: 1.2; display: block; }
+.dist { display: flex; flex-direction: column; gap: 4px; }
+.dist .bar { display: grid; grid-template-columns: 16px 1fr; gap: 8px; align-items: center; font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; }
+.dist .fill { background: var(--miss); color: #fff; border-radius: 4px; padding: 2px 8px; text-align: right; min-width: 26px; width: max(26px, var(--w)); }
+.dist .fill.now { background: var(--hit); }
+table.fam { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+table.fam th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); text-align: right; font-weight: 700; padding: 4px 4px 6px; }
+table.fam th:first-child, table.fam td:first-child { text-align: left; }
+table.fam td { padding: 8px 4px; border-top: 1px solid var(--line); text-align: right; }
+table.fam .pn { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+table.fam .pn .badge { width: 24px; height: 24px; font-size: 12px; }
+.hist { display: flex; flex-direction: column; }
+.hist button { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; text-align: left; border: 0; border-top: 1px solid var(--line); background: transparent; padding: 10px 2px; cursor: pointer; }
+.hist .w { font: 800 17px/1.2 var(--font-display); text-transform: uppercase; letter-spacing: .06em; }
+.hist .r { font-weight: 700; font-variant-numeric: tabular-nums; }
+.hist .r.lost { color: var(--danger); }
+.hist .s { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+.tabs { display: flex; gap: 6px; padding: 0 20px 4px; }
+
+.result-word { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; }
+.result-word .tile { --tile: 44px; width: 44px; height: 44px; font-size: 24px; }
+.result-msg { text-align: center; font: 800 26px/1.1 var(--font-display); margin: 0; }
+.meaning { background: var(--bg); border-radius: 12px; padding: 12px 14px; font-size: 14px; }
+.meaning .pos { font-style: italic; color: var(--muted); margin-right: 4px; }
+.meaning ol { margin: 4px 0 0; padding-left: 20px; }
+.meaning a { color: var(--accent); font-weight: 600; }
+.code {
+  font: 800 28px/1 var(--font-display); letter-spacing: .14em; text-align: center; padding: 14px; border-radius: 12px;
+  background: var(--bg); user-select: all; word-break: break-all;
+}
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field input {
+  font: 600 18px/1.2 var(--font-body); padding: 12px 14px; border-radius: 12px; border: 2px solid var(--line);
+  background: var(--bg); color: var(--ink); width: 100%; text-transform: uppercase; letter-spacing: .08em;
+}
+.field input.name { text-transform: none; letter-spacing: 0; }
+.err { color: var(--danger); font-size: 13px; font-weight: 600; min-height: 1em; }
+.players { display: flex; flex-direction: column; gap: 8px; }
+.prow { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1.5px solid var(--line); border-radius: 14px; }
+.prow.active { border-color: var(--accent); }
+.prow input { flex: 1; min-width: 0; border: 0; background: transparent; font: 600 16px var(--font-body); color: var(--ink); padding: 6px 4px; border-radius: 6px; }
+.prow .sm { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.colors { display: flex; gap: 6px; }
+.colors button { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+.colors button[aria-pressed="true"] { border-color: var(--ink); }
+.confirm { background: var(--bg); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.hint-opts { display: flex; flex-direction: column; gap: 8px; }
+.hint-opts .btn { justify-content: flex-start; text-align: left; }
+.hint-opts .btn small { display: block; font-weight: 500; color: var(--muted); font-size: 12px; }
+.clue { background: var(--bg); border-radius: 12px; padding: 12px 14px; }
+ul.tight { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-weight: 600; }
+
+@media (max-height: 640px) { .key { height: 44px; } .kb { gap: 5px; } .top { padding-block: 4px 2px; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; transition: none !important; }
+}
+</style>
+<!--ARTIFACT:PAUSE-->
+</head>
+<body>
+<!--ARTIFACT:RESUME-->
+<div class="app" id="app">
+  <header class="top">
+    <div class="left">
+      <button class="icon-btn" id="btnHelp" aria-label="How to play"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.2a2.8 2.8 0 0 1 5.4 1c0 1.9-2.7 2.3-2.7 3.9"/><path d="M12 17.3h.01"/></svg></button>
+      <button class="who" id="btnWho" aria-label="Change player"><span class="badge" id="whoBadge">P</span><span class="nm" id="whoName">Player</span></button>
+    </div>
+    <div class="brand">
+      <h1>Guess<span>work</span></h1>
+      <div class="meta" id="meta">&nbsp;</div>
+    </div>
+    <div class="right">
+      <button class="icon-btn" id="btnNew" aria-label="New word"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
+      <button class="icon-btn" id="btnStats" aria-label="Statistics"><svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-6"/></svg></button>
+      <button class="icon-btn" id="btnSettings" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg></button>
+    </div>
+  </header>
+
+  <main class="stage" id="stage">
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+    <div class="hintstrip" id="hintstrip" hidden aria-label="Letters revealed by hints"></div>
+    <div class="board" id="board" role="grid" aria-label="Guesses"></div>
+    <div class="loading" id="loading">Loading words…</div>
+  </main>
+
+  <div class="actions" id="actions"></div>
+
+  <div class="kb" id="kb" aria-label="Keyboard"></div>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlgTitle" tabindex="-1">
+  <div class="dlg-head"><h2 id="dlgTitle"></h2><button class="icon-btn" id="dlgClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="tabs" id="dlgTabs" hidden></div>
+  <div class="dlg-body" id="dlgBody"></div>
+</dialog>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------------------------------------------------------------- storage */
+const LS_KEY = 'guesswork.v1';
+const store = {
+  get() { try { return JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch { return null; } },
+  set(v) { try { localStorage.setItem(LS_KEY, JSON.stringify(v)); } catch { /* private mode: play on without saving */ } }
+};
+
+const MAX_ROWS = 6;
+const LENGTHS = [4, 5, 6, 7];
+const LEVELS = ['easy', 'normal', 'tricky'];
+const LEVEL_LABEL = { easy: 'Easy', normal: 'Normal', tricky: 'Tricky' };
+const LEVEL_DESC = {
+  easy: 'Everyday words a 10-year-old knows.',
+  normal: 'Common words, like the classic game.',
+  tricky: 'Adds less common words for word nerds.'
+};
+const COLORS = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'];
+const WIN_MSG = ['Unreal!', 'Brilliant!', 'Superb!', 'Nicely done!', 'Got it!', 'Phew, just in time!', 'Phew, just in time!'];
+
+const uid = () => Math.random().toString(36).slice(2, 10);
+const newStats = () => ({ played: 0, won: 0, streak: 0, best: 0, dist: [0, 0, 0, 0, 0, 0], totalGuesses: 0, bestTime: 0, hints: 0 });
+const newPlayer = (name, color) => ({
+  id: uid(), name, color,
+  prefs: { length: 5, level: 'normal', hard: false, hints: true, timer: true },
+  stats: {}, history: [], seen: {}, game: null
+});
+
+let DB = store.get();
+if (!DB || !DB.players || !DB.players.length) {
+  DB = { v: 1, settings: { theme: 'auto', contrast: false, vibrate: true, enterRight: false }, players: [newPlayer('Player 1', 'p1')], active: null, seenHelp: false };
+  DB.active = DB.players[0].id;
+}
+const save = () => store.set(DB);
+const P = () => DB.players.find(p => p.id === DB.active) || DB.players[0];
+const statsFor = (p, len) => (p.stats[len] ||= newStats());
+
+/* ------------------------------------------------------------------ words */
+const W = { answers: {}, valid: {}, ready: false };
+async function loadWords() {
+  const res = await fetch('words.json', { cache: 'force-cache' });
+  const data = await res.json();
+  const split = (s, n) => s.match(new RegExp('.{' + n + '}', 'g')) || [];
+  for (const len of LENGTHS) {
+    const tiers = data.a[len].map(s => split(s, len));
+    W.answers[len] = tiers;
+    W.valid[len] = new Set([...tiers.flat(), ...split(data.g[len], len)]);
+  }
+  W.ready = true;
+}
+function pool(len, level) {
+  const t = W.answers[len];
+  const n = LEVELS.indexOf(level) + 1;
+  return t.slice(0, n).flat();
+}
+function randInt(n) {
+  const a = new Uint32Array(1);
+  (self.crypto || window.crypto).getRandomValues(a);
+  return a[0] % n;
+}
+function pickWord(p, len, level) {
+  const all = pool(len, level);
+  const seen = new Set(p.seen[len] || []);
+  let fresh = all.filter(w => !seen.has(w));
+  if (fresh.length < 10) { p.seen[len] = []; fresh = all; }
+  const w = fresh[randInt(fresh.length)];
+  (p.seen[len] ||= []).push(w);
+  return w;
+}
+
+/* ------------------------------------------------------------------ logic */
+function score(guess, word) {
+  const res = Array(word.length).fill('miss');
+  const left = {};
+  for (let i = 0; i < word.length; i++) {
+    if (guess[i] === word[i]) res[i] = 'hit';
+    else left[word[i]] = (left[word[i]] || 0) + 1;
+  }
+  for (let i = 0; i < word.length; i++) {
+    if (res[i] === 'hit') continue;
+    if (left[guess[i]] > 0) { res[i] = 'near'; left[guess[i]]--; }
+  }
+  return res;
+}
+const ORD = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th'];
+function hardModeProblem(guess, g) {
+  const need = {};
+  for (const prev of g.guesses) {
+    const marks = score(prev, g.word);
+    const count = {};
+    for (let i = 0; i < prev.length; i++) {
+      if (marks[i] === 'hit' && guess[i] !== prev[i]) return `${ORD[i]} letter must be ${prev[i].toUpperCase()}`;
+      if (marks[i] !== 'miss') count[prev[i]] = (count[prev[i]] || 0) + 1;
+    }
+    for (const k in count) need[k] = Math.max(need[k] || 0, count[k]);
+  }
+  for (const k in need) {
+    const have = [...guess].filter(c => c === k).length;
+    if (have < need[k]) return `Guess must contain ${k.toUpperCase()}${need[k] > 1 ? ' twice' : ''}`;
+  }
+  return null;
+}
+// Challenge codes: a light scramble so the word isn't readable at a glance.
+const A = 'abcdefghijklmnopqrstuvwxyz';
+function encodeWord(w) {
+  let sum = 0, out = '';
+  for (let i = 0; i < w.length; i++) {
+    const c = A.indexOf(w[i]); sum += c * (i + 1);
+    out += A[(c + 11 + 7 * i) % 26];
+  }
+  return (out + A[sum % 26]).toUpperCase();
+}
+function decodeWord(code) {
+  code = (code || '').toLowerCase().replace(/[^a-z]/g, '');
+  if (code.length < 5 || code.length > 8) return null;
+  const body = code.slice(0, -1);
+  let sum = 0, w = '';
+  for (let i = 0; i < body.length; i++) {
+    const c = ((A.indexOf(body[i]) - 11 - 7 * i) % 26 + 26) % 26;
+    w += A[c]; sum += c * (i + 1);
+  }
+  if (A[sum % 26] !== code.at(-1)) return null;
+  return W.valid[w.length]?.has(w) ? w : null;
+}
+const baseUrl = () => location.href.split('#')[0];
+const fmtTime = ms => { const s = Math.round(ms / 1000); return s >= 3600 ? '59:59+' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+
+/* ---------------------------------------------------------------- game state */
+let busy = false;
+let typed = '';
+const $ = id => document.getElementById(id);
+
+function newGame({ word = null, challenge = false } = {}) {
+  const p = P();
+  const len = word ? word.length : p.prefs.length;
+  p.game = {
+    word: word || pickWord(p, len, p.prefs.level),
+    len, level: p.prefs.level, hard: p.prefs.hard, challenge,
+    guesses: [], reveal: {}, ruled: [], clue: false, hints: 0,
+    elapsed: 0, done: false, won: false, started: Date.now()
+  };
+  typed = '';
+  save();
+  render();
+}
+const G = () => P().game;
+
+/* timer */
+let resumeAt = Date.now();
+function bankTime() {
+  const g = G();
+  if (g && !g.done && g.guesses.length + typed.length > 0 && document.visibilityState === 'visible') g.elapsed += Date.now() - resumeAt;
+  resumeAt = Date.now();
+}
+setInterval(() => { bankTime(); renderMeta(); }, 1000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') resumeAt = Date.now(); else { bankTime(); save(); } });
+
+/* ------------------------------------------------------------------ render */
+function applyTheme() {
+  const s = DB.settings, root = document.documentElement;
+  if (s.theme === 'auto') delete root.dataset.theme; else root.dataset.theme = s.theme;
+  root.classList.toggle('contrast', !!s.contrast);
+}
+function renderWho() {
+  const p = P();
+  $('whoBadge').textContent = (p.name.trim()[0] || '?').toUpperCase();
+  $('whoBadge').style.background = `var(--${p.color})`;
+  $('whoName').textContent = p.name;
+}
+function renderMeta() {
+  const g = G(); if (!g) return;
+  const p = P();
+  const bits = [`${g.len} letters`, g.challenge ? 'Challenge' : LEVEL_LABEL[g.level]];
+  if (g.hard) bits.push('Hard');
+  if (p.prefs.timer) bits.push(fmtTime(g.elapsed));
+  $('meta').textContent = bits.join(' · ');
+}
+function sizeBoard() {
+  const g = G(); if (!g) return;
+  const stage = $('stage');
+  const hintH = $('hintstrip').hidden ? 0 : 0.42 + 0.15;
+  const gap = 6;
+  const w = Math.min(stage.clientWidth - 8, 420);
+  const h = stage.clientHeight - 12;
+  const byW = (w - gap * (g.len - 1)) / g.len;
+  const byH = (h - gap * (MAX_ROWS - 1) - 8) / (MAX_ROWS + hintH);
+  const t = Math.max(30, Math.floor(Math.min(byW, byH, 66)));
+  document.documentElement.style.setProperty('--tile', t + 'px');
+}
+function render() {
+  const g = G();
+  renderWho();
+  if (!g) return;
+  const board = $('board');
+  board.style.setProperty('--cols', g.len);
+  board.innerHTML = '';
+  for (let r = 0; r < MAX_ROWS; r++) {
+    const row = document.createElement('div');
+    row.className = 'row'; row.setAttribute('role', 'row');
+    for (let c = 0; c < g.len; c++) {
+      const t = document.createElement('div');
+      t.className = 'tile'; t.setAttribute('role', 'gridcell');
+      row.appendChild(t);
+    }
+    board.appendChild(row);
+  }
+  g.guesses.forEach((gw, r) => paintRow(r, gw, score(gw, g.word), false));
+  paintTyping();
+  renderHints();
+  renderKeyboard();
+  renderActions();
+  renderMeta();
+  sizeBoard();
+}
+function paintRow(r, word, marks, animate) {
+  const row = $('board').children[r];
+  [...row.children].forEach((t, i) => {
+    t.textContent = word[i];
+    const label = { hit: 'correct', near: 'in the word, wrong spot', miss: 'not in the word' }[marks[i]];
+    t.setAttribute('aria-label', `${word[i].toUpperCase()}, ${label}`);
+    if (animate) {
+      t.style.animationDelay = (i * 260) + 'ms';
+      t.classList.add('flip');
+      setTimeout(() => { t.className = 'tile flip ' + marks[i]; }, i * 260 + 250);
+    } else t.className = 'tile ' + marks[i];
+  });
+}
+function paintTyping() {
+  const g = G();
+  if (g.done) return;
+  const r = g.guesses.length;
+  const row = $('board').children[r];
+  if (!row) return;
+  [...$('board').children].forEach(x => x.classList.remove('current'));
+  row.classList.add('current');
+  [...row.children].forEach((t, i) => {
+    const ch = typed[i] || '';
+    if (t.textContent !== ch) {
+      t.textContent = ch;
+      t.className = 'tile' + (ch ? ' filled' : '');
+    }
+    t.classList.toggle('cursor', i === typed.length);
+    t.removeAttribute('aria-label');
+  });
+}
+function renderHints() {
+  const g = G();
+  const strip = $('hintstrip');
+  const keys = Object.keys(g.reveal);
+  strip.hidden = !keys.length;
+  strip.innerHTML = '';
+  if (!keys.length) return;
+  for (let i = 0; i < g.len; i++) {
+    const d = document.createElement('div');
+    if (g.reveal[i]) { d.textContent = g.reveal[i].toUpperCase(); d.className = 'on'; }
+    strip.appendChild(d);
+  }
+}
+const KB_ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+function keyStates() {
+  const g = G(), st = {};
+  const rank = { miss: 1, near: 2, hit: 3 };
+  g.guesses.forEach(gw => score(gw, g.word).forEach((m, i) => {
+    const c = gw[i];
+    if (!st[c] || rank[m] > rank[st[c]]) st[c] = m;
+  }));
+  g.ruled.forEach(c => { if (!st[c]) st[c] = 'miss'; });
+  return st;
+}
+function renderKeyboard() {
+  const kb = $('kb');
+  const st = keyStates();
+  const enter = '<button class="key wide" data-k="enter" aria-label="Enter">Enter</button>';
+  const back = '<button class="key wide" data-k="back" aria-label="Delete letter"><svg viewBox="0 0 24 24"><path d="M21 5H9l-6 7 6 7h12z"/><path d="M17 9l-5 6M12 9l5 6"/></svg></button>';
+  const swap = DB.settings.enterRight;
+  kb.innerHTML = KB_ROWS.map((row, i) => {
+    let keys = [...row].map(c => `<button class="key ${st[c] || ''}" data-k="${c}" aria-label="${c.toUpperCase()}${st[c] ? ', ' + ({ hit: 'correct', near: 'in word', miss: 'not in word' })[st[c]] : ''}">${c}</button>`).join('');
+    if (i === 1) keys = '<span class="spacer"></span>' + keys + '<span class="spacer"></span>';
+    if (i === 2) keys = (swap ? back : enter) + keys + (swap ? enter : back);
+    return `<div class="r">${keys}</div>`;
+  }).join('');
+}
+const ICON = {
+  bulb: '<svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg>',
+  next: '<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  flag: '<svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
+  share: '<svg viewBox="0 0 24 24"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>',
+  people: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></svg>',
+  copy: '<svg viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>',
+  plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  play: '<svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>'
+};
+function renderActions() {
+  const g = G(), p = P(), el = $('actions');
+  if (g.done) {
+    el.innerHTML = `<button class="chip primary" id="aNext">${ICON.next}Next word</button><button class="chip" id="aResult">See result</button>`;
+    $('aNext').onclick = () => newGame();
+    $('aResult').onclick = () => openResult();
+    return;
+  }
+  const parts = [];
+  if (p.prefs.hints) parts.push(`<button class="chip" id="aHint">${ICON.bulb}Hint${g.hints ? ` (${g.hints})` : ''}</button>`);
+  parts.push(`<button class="chip" id="aChallenge">${ICON.people}Challenge</button>`);
+  if (g.guesses.length) parts.push(`<button class="chip" id="aGiveUp">${ICON.flag}Give up</button>`);
+  el.innerHTML = parts.join('');
+  $('aHint') && ($('aHint').onclick = openHints);
+  $('aChallenge').onclick = openChallenge;
+  $('aGiveUp') && ($('aGiveUp').onclick = confirmGiveUp);
+}
+
+/* ------------------------------------------------------------------ toasts */
+function toast(msg, ms = 1600) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  $('toasts').appendChild(t);
+  setTimeout(() => t.remove(), ms);
+}
+const buzz = pattern => { if (DB.settings.vibrate && navigator.vibrate) try { navigator.vibrate(pattern); } catch {} };
+
+/* ------------------------------------------------------------------ input */
+function onKey(k) {
+  const g = G();
+  if (!W.ready || !g || busy || $('dlg').open) return;
+  if (g.done) { if (k === 'enter') newGame(); return; }
+  if (k === 'enter') return submit();
+  if (k === 'back') { typed = typed.slice(0, -1); paintTyping(); return; }
+  if (/^[a-z]$/.test(k) && typed.length < g.len) {
+    if (!typed.length && !g.guesses.length) resumeAt = Date.now();
+    typed += k; paintTyping(); buzz(8);
+  }
+}
+function shakeRow(msg) {
+  const row = $('board').children[G().guesses.length];
+  row.classList.remove('shake'); void row.offsetWidth; row.classList.add('shake');
+  toast(msg); buzz([30, 40, 30]);
+}
+function submit() {
+  const g = G();
+  if (typed.length < g.len) return shakeRow('Not enough letters');
+  if (!W.valid[g.len].has(typed)) return shakeRow('Not in our word list');
+  if (g.guesses.includes(typed)) return shakeRow('You already tried that');
+  if (g.hard) { const prob = hardModeProblem(typed, g); if (prob) return shakeRow(prob); }
+  bankTime();
+  const guess = typed; typed = '';
+  g.guesses.push(guess);
+  const marks = score(guess, g.word);
+  const r = g.guesses.length - 1;
+  busy = true;
+  $('board').children[r].classList.remove('current');
+  paintRow(r, guess, marks, true);
+  const won = guess === g.word, lost = !won && g.guesses.length >= MAX_ROWS;
+  if (won || lost) finish(won);
+  save();
+  setTimeout(() => {
+    busy = false;
+    renderKeyboard();
+    if (won) {
+      [...$('board').children[r].children].forEach((t, i) => { t.classList.remove('flip'); t.style.animationDelay = (i * 90) + 'ms'; t.classList.add('dance'); });
+      toast(WIN_MSG[r], 1800); buzz([20, 60, 20, 60, 40]);
+      setTimeout(openResult, 1700);
+    } else if (lost) {
+      toast(g.word.toUpperCase(), 2600);
+      setTimeout(openResult, 1700);
+    } else paintTyping();
+    renderActions();
+  }, g.len * 260 + 300);
+}
+function finish(won) {
+  const g = G(), p = P();
+  g.done = true; g.won = won;
+  const s = statsFor(p, g.len);
+  s.played++; s.hints += g.hints;
+  if (won) {
+    s.won++; s.streak++; s.best = Math.max(s.best, s.streak);
+    s.dist[g.guesses.length - 1]++; s.totalGuesses += g.guesses.length;
+    if (!g.hints && (!s.bestTime || g.elapsed < s.bestTime)) s.bestTime = g.elapsed;
+  } else s.streak = 0;
+  p.history.unshift({ w: g.word, won, n: g.guesses.length, t: g.elapsed, h: g.hints, lv: g.challenge ? 'challenge' : g.level, hard: g.hard, d: Date.now(), grid: g.guesses.map(x => score(x, g.word).map(m => m[0]).join('')) });
+  p.history.length = Math.min(p.history.length, 60);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  if ($('dlg').open) return;
+  const k = e.key === 'Enter' ? 'enter' : e.key === 'Backspace' ? 'back' : e.key.toLowerCase();
+  if (k === 'enter' || k === 'back' || /^[a-z]$/.test(k)) { e.preventDefault(); onKey(k); }
+});
+$('kb').addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (b) { onKey(b.dataset.k); b.blur(); } });
+
+/* ------------------------------------------------------------------ dialogs */
+const dlg = $('dlg');
+let onDlgClose = null;
+function openDialog(title, html, { tabs = null, after = null } = {}) {
+  $('dlgTitle').textContent = title;
+  $('dlgBody').innerHTML = html;
+  const tb = $('dlgTabs');
+  tb.hidden = !tabs; tb.innerHTML = tabs || '';
+  if (!dlg.open) { dlg.showModal(); dlg.focus(); }
+  $('dlgBody').scrollTop = 0;
+  after && after($('dlgBody'));
+}
+function closeDialog() { if (dlg.open) dlg.close(); }
+$('dlgClose').onclick = closeDialog;
+dlg.addEventListener('click', e => { if (e.target === dlg) closeDialog(); });
+dlg.addEventListener('close', () => { const f = onDlgClose; onDlgClose = null; f && f(); });
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const tilesHtml = (word, marks) => [...word].map((c, i) => `<div class="tile ${marks ? marks[i] : 'filled'}">${c}</div>`).join('');
+
+/* help */
+function openHelp() {
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  openDialog('How to play', `
+    <p>Guess the hidden word in <b>6 tries</b>. Each guess must be a real word. After each guess the tiles change colour:</p>
+    <div><div class="example">${tilesHtml('plant', ['hit', 'miss', 'miss', 'miss', 'miss'])}</div><p class="small"><b>P</b> is in the word and in the right spot.</p></div>
+    <div><div class="example">${tilesHtml('cream', ['miss', 'near', 'miss', 'miss', 'miss'])}</div><p class="small"><b>R</b> is in the word but in a different spot.</p></div>
+    <div><div class="example">${tilesHtml('shout', ['miss', 'miss', 'miss', 'miss', 'miss'])}</div><p class="small">Grey letters aren't in the word at all.</p></div>
+    <div class="sec"><h3>What's extra here</h3>
+      <ul class="tight small">
+        <li><b>Unlimited.</b> Tap <b>Next word</b> as often as you like.</li>
+        <li><b>A profile for everyone.</b> Each player keeps their own streaks, stats, settings and unfinished game.</li>
+        <li><b>Easy, Normal or Tricky</b> word pools, and 4, 5, 6 or 7 letters.</li>
+        <li><b>Fair answers.</b> Answers are common words, never plurals or past tenses. Australian, British and American spellings are all accepted as guesses.</li>
+        <li><b>Hints</b> when you're stuck (can be turned off per player).</li>
+        <li><b>Challenge codes.</b> Send the same word to someone else, or type in a word for your kids to guess.</li>
+        <li><b>Learn the word.</b> See what it means when the game ends.</li>
+        <li><b>Colour-blind friendly</b> colours, dark mode, and an option to move Enter to the right.</li>
+      </ul>
+    </div>
+    <div class="sec"><h3>Put it on your home screen</h3>
+      <p class="small">${isIOS ? 'In Safari, tap the Share button, then <b>Add to Home Screen</b>.' : 'In Chrome, tap the ⋮ menu, then <b>Add to Home screen</b> or <b>Install app</b>.'} It then opens full screen and works offline.</p>
+      ${installEvt ? '<button class="btn primary" id="hInstall">Install app</button>' : ''}
+    </div>
+    <div class="btns"><button class="btn" id="hPlayers">${ICON.people}Set up players</button><button class="btn primary" id="hPlay">${ICON.play}Play</button></div>
+  `, { after: b => {
+    b.querySelector('#hPlay').onclick = closeDialog;
+    b.querySelector('#hPlayers').onclick = openPlayers;
+    const ib = b.querySelector('#hInstall'); if (ib) ib.onclick = async () => { installEvt.prompt(); installEvt = null; ib.remove(); };
+  } });
+  DB.seenHelp = true; save();
+}
+
+/* players */
+function openPlayers() {
+  const draw = (confirmId = null) => {
+    const html = `<p class="small muted">Everyone gets their own stats, streaks and settings. Tap a player to switch.</p>
+      <div class="players">${DB.players.map(p => {
+        const s = Object.values(p.stats).reduce((a, x) => ({ played: a.played + x.played, won: a.won + x.won }), { played: 0, won: 0 });
+        return `<div class="prow ${p.id === DB.active ? 'active' : ''}" data-id="${p.id}">
+          <button class="badge" data-act="pick" style="background:var(--${p.color});border:0;cursor:pointer" aria-label="Switch to ${esc(p.name)}">${esc((p.name.trim()[0] || '?').toUpperCase())}</button>
+          <input class="name" value="${esc(p.name)}" maxlength="16" aria-label="Player name" id="pn-${p.id}">
+          <span class="sm">${s.won}/${s.played} won</span>
+          ${p.id === DB.active ? '<span class="sm" style="color:var(--accent);font-weight:700">Playing</span>' : `<button class="chip" data-act="pick">Play</button>`}
+        </div>
+        ${p.id === DB.active ? `<div class="colors" aria-label="Colour">${COLORS.map(c => `<button data-color="${c}" style="background:var(--${c})" aria-pressed="${p.color === c}" aria-label="Colour ${c}"></button>`).join('')}</div>` : ''}
+        ${confirmId === p.id ? `<div class="confirm"><b>Remove ${esc(p.name)} and all their stats?</b><div class="btns"><button class="btn" data-act="keep">Keep</button><button class="btn danger" data-act="del" data-id="${p.id}">Remove</button></div></div>` : ''}`;
+      }).join('')}</div>
+      <div class="btns">
+        ${DB.players.length < 8 ? `<button class="btn" id="pAdd">${ICON.plus}Add player</button>` : ''}
+        ${DB.players.length > 1 ? `<button class="btn danger" id="pRemove">Remove ${esc(P().name)}</button>` : ''}
+      </div>
+      <p class="small muted">Stats are saved on this phone only. On separate phones, use challenge codes to play the same word.</p>`;
+    openDialog("Who's playing?", html, { after: b => {
+      b.querySelectorAll('.prow input').forEach(inp => inp.addEventListener('input', () => {
+        const p = DB.players.find(x => 'pn-' + x.id === inp.id); p.name = inp.value.slice(0, 16) || 'Player'; save(); renderWho();
+      }));
+      b.querySelectorAll('[data-act="pick"]').forEach(btn => btn.onclick = () => {
+        bankTime(); save();
+        DB.active = btn.closest('.prow').dataset.id; typed = ''; save();
+        if (!P().game) newGame(); else render();
+        closeDialog(); toast(`${P().name} is playing`);
+      });
+      b.querySelectorAll('[data-color]').forEach(btn => btn.onclick = () => { P().color = btn.dataset.color; save(); renderWho(); draw(); });
+      const add = b.querySelector('#pAdd');
+      if (add) add.onclick = () => {
+        const used = new Set(DB.players.map(p => p.color));
+        const p = newPlayer(`Player ${DB.players.length + 1}`, COLORS.find(c => !used.has(c)) || 'p1');
+        DB.players.push(p); save(); draw();
+        setTimeout(() => { const i = $('pn-' + p.id); i && (i.focus(), i.select()); }, 50);
+      };
+      const rm = b.querySelector('#pRemove'); if (rm) rm.onclick = () => draw(DB.active);
+      const keep = b.querySelector('[data-act="keep"]'); if (keep) keep.onclick = () => draw();
+      const del = b.querySelector('[data-act="del"]');
+      if (del) del.onclick = () => {
+        DB.players = DB.players.filter(p => p.id !== del.dataset.id);
+        DB.active = DB.players[0].id; typed = ''; save();
+        if (!P().game) newGame(); else render();
+        draw();
+      };
+    } });
+  };
+  draw();
+}
+
+/* settings */
+function openSettings() {
+  const p = P(), s = DB.settings;
+  const seg = (name, opts, cur, labels) => `<div class="seg" role="group" data-seg="${name}">${opts.map(o => `<button aria-pressed="${o === cur}" data-v="${o}">${labels ? labels[o] : o}</button>`).join('')}</div>`;
+  const sw = (id, on, t, d) => `<label class="opt"><div><div class="t">${t}</div>${d ? `<div class="d">${d}</div>` : ''}</div><span class="switch"><input type="checkbox" id="${id}" ${on ? 'checked' : ''}><span></span></span></label>`;
+  openDialog('Settings', `
+    <div class="sec"><h3>${esc(p.name)}'s game</h3>
+      <div class="field"><span class="small"><b>Word length</b></span>${seg('length', LENGTHS, p.prefs.length, { 4: '4', 5: '5', 6: '6', 7: '7' })}</div>
+      <div class="field" style="margin-top:12px"><span class="small"><b>Words</b></span>${seg('level', LEVELS, p.prefs.level, LEVEL_LABEL)}<span class="small muted" id="lvDesc">${LEVEL_DESC[p.prefs.level]}</span></div>
+      <div style="margin-top:6px">
+        ${sw('sHard', p.prefs.hard, 'Hard mode', 'Letters you have found must be used in later guesses.')}
+        ${sw('sHints', p.prefs.hints, 'Allow hints', 'Shows the Hint button. Turn off for pure play.')}
+        ${sw('sTimer', p.prefs.timer, 'Show timer', 'Your solve time is always saved in stats.')}
+      </div>
+      <p class="small muted" id="applyNote"></p>
+    </div>
+    <div class="sec"><h3>This phone</h3>
+      <div class="field"><span class="small"><b>Appearance</b></span>${seg('theme', ['auto', 'light', 'dark'], s.theme, { auto: 'Auto', light: 'Light', dark: 'Dark' })}</div>
+      <div style="margin-top:6px">
+        ${sw('sContrast', s.contrast, 'Colour-blind colours', 'Orange and blue instead of green and gold.')}
+        ${sw('sVibrate', s.vibrate, 'Vibrate', 'Light taps on Android phones. iPhones don’t allow it in web apps.')}
+        ${sw('sEnter', s.enterRight, 'Enter key on the right', 'Swap Enter and Delete to avoid mis-taps.')}
+      </div>
+    </div>
+    <p class="small muted">Guesswork has no ads, no accounts and no tracking. Everything stays on this phone.</p>
+  `, { after: b => {
+    const note = () => {
+      const g = G();
+      const differs = g && !g.done && !g.challenge && (g.len !== p.prefs.length || g.level !== p.prefs.level || g.hard !== p.prefs.hard);
+      b.querySelector('#applyNote').innerHTML = differs ? (g.guesses.length ? 'Changes apply from your next word.' : '') : '';
+      if (differs && !g.guesses.length) { newGame(); }
+    };
+    b.querySelectorAll('[data-seg]').forEach(group => group.addEventListener('click', e => {
+      const btn = e.target.closest('button'); if (!btn) return;
+      group.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === btn));
+      const v = btn.dataset.v, name = group.dataset.seg;
+      if (name === 'length') p.prefs.length = +v;
+      if (name === 'level') { p.prefs.level = v; b.querySelector('#lvDesc').textContent = LEVEL_DESC[v]; }
+      if (name === 'theme') { s.theme = v; applyTheme(); }
+      save(); note();
+    }));
+    const bind = (id, fn) => b.querySelector('#' + id).addEventListener('change', e => { fn(e.target.checked); save(); });
+    bind('sHard', v => { p.prefs.hard = v; note(); });
+    bind('sHints', v => { p.prefs.hints = v; renderActions(); });
+    bind('sTimer', v => { p.prefs.timer = v; renderMeta(); });
+    bind('sContrast', v => { s.contrast = v; applyTheme(); });
+    bind('sVibrate', v => { s.vibrate = v; if (v) buzz(20); });
+    bind('sEnter', v => { s.enterRight = v; renderKeyboard(); });
+  } });
+}
+
+/* stats */
+function openStats(tab = 'me', len = null) {
+  const p = P();
+  len = len || (G() ? G().len : p.prefs.length);
+  const tabs = `<button class="chip ${tab === 'me' ? 'primary' : ''}" data-tab="me">${esc(p.name)}</button>
+    ${DB.players.length > 1 ? `<button class="chip ${tab === 'family' ? 'primary' : ''}" data-tab="family">Family</button>` : ''}
+    <button class="chip ${tab === 'history' ? 'primary' : ''}" data-tab="history">Recent words</button>`;
+  const lenSeg = `<div class="seg" data-len>${LENGTHS.map(l => `<button aria-pressed="${l === len}" data-v="${l}">${l} letters</button>`).join('')}</div>`;
+  let html = '';
+  if (tab === 'me') {
+    const s = statsFor(p, len);
+    const max = Math.max(1, ...s.dist);
+    const g = G();
+    const nowRow = g && g.done && g.won && g.len === len ? g.guesses.length - 1 : -1;
+    html = `${lenSeg}
+      <div class="statgrid">
+        <div><b>${s.played}</b><span>Played</span></div>
+        <div><b>${s.played ? Math.round(100 * s.won / s.played) : 0}</b><span>Win %</span></div>
+        <div><b>${s.streak}</b><span>Win streak</span></div>
+        <div><b>${s.best}</b><span>Best streak</span></div>
+      </div>
+      <div class="statgrid" style="grid-template-columns:repeat(3,1fr)">
+        <div><b>${s.won ? (s.totalGuesses / s.won).toFixed(1) : '–'}</b><span>Average guesses</span></div>
+        <div><b>${s.bestTime ? fmtTime(s.bestTime) : '–'}</b><span>Fastest solve (no hints)</span></div>
+        <div><b>${s.hints}</b><span>Hints used</span></div>
+      </div>
+      <div class="sec"><h3>Guesses needed to win</h3>
+        <div class="dist">${s.dist.map((n, i) => `<div class="bar"><span>${i + 1}</span><div class="fill ${i === nowRow ? 'now' : ''}" style="--w:${(100 * n / max).toFixed(1)}%">${n}</div></div>`).join('')}</div>
+      </div>
+      <p class="small muted">Your streak counts wins in a row. There's no daily deadline, so it never breaks because you missed a day.</p>`;
+  } else if (tab === 'family') {
+    const rows = DB.players.map(pl => ({ pl, s: statsFor(pl, len) })).sort((a, b) => (b.s.won / (b.s.played || 1)) - (a.s.won / (a.s.played || 1)) || b.s.played - a.s.played);
+    html = `${lenSeg}<div style="overflow-x:auto"><table class="fam"><thead><tr><th>Player</th><th>Won</th><th>Win %</th><th>Avg</th><th>Streak</th><th>Fastest</th></tr></thead><tbody>
+      ${rows.map(({ pl, s }) => `<tr><td><span class="pn"><span class="badge" style="background:var(--${pl.color})">${esc((pl.name.trim()[0] || '?').toUpperCase())}</span>${esc(pl.name)}</span></td>
+        <td>${s.won}/${s.played}</td><td>${s.played ? Math.round(100 * s.won / s.played) : 0}%</td><td>${s.won ? (s.totalGuesses / s.won).toFixed(1) : '–'}</td><td>${s.streak}</td><td>${s.bestTime ? fmtTime(s.bestTime) : '–'}</td></tr>`).join('')}
+      </tbody></table></div>
+      <p class="small muted">Everyone plays different words, so for a head-to-head use <b>Challenge</b> to give each player the same word.</p>`;
+  } else {
+    html = p.history.length ? `<p class="small muted">Tap a word to see what it means.</p><div class="hist">${p.history.slice(0, 40).map((h, i) => `
+      <button data-i="${i}"><span class="w">${h.w}</span><span class="r ${h.won ? '' : 'lost'}">${h.won ? h.n + '/6' : 'X/6'}</span>
+      <span class="s">${h.lv === 'challenge' ? 'Challenge' : LEVEL_LABEL[h.lv] || ''}${h.hard ? ' · Hard' : ''} · ${fmtTime(h.t)}${h.h ? ` · ${h.h} hint${h.h > 1 ? 's' : ''}` : ''} · ${new Date(h.d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span></button>`).join('')}</div>`
+      : '<p class="muted">Finished games will show up here.</p>';
+  }
+  openDialog('Statistics', html, { tabs, after: b => {
+    $('dlgTabs').querySelectorAll('[data-tab]').forEach(x => x.onclick = () => openStats(x.dataset.tab, len));
+    const ls = b.querySelector('[data-len]');
+    if (ls) ls.onclick = e => { const x = e.target.closest('button'); if (x) openStats(tab, +x.dataset.v); };
+    b.querySelectorAll('.hist button').forEach(x => x.onclick = () => openMeaning(p.history[+x.dataset.i].w, () => openStats('history', len)));
+  } });
+}
+
+/* meaning lookup (online only) */
+const defCache = {};
+async function fetchMeaning(word) {
+  if (defCache[word]) return defCache[word];
+  const ctl = new AbortController(); setTimeout(() => ctl.abort(), 6000);
+  const r = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + word, { signal: ctl.signal });
+  if (!r.ok) throw new Error('not found');
+  const data = await r.json();
+  const out = [];
+  for (const e of data) for (const m of e.meanings || []) {
+    const defs = (m.definitions || []).slice(0, 2).map(d => d.definition);
+    if (defs.length && out.length < 3) out.push({ pos: m.partOfSpeech, defs });
+  }
+  if (!out.length) throw new Error('empty');
+  return (defCache[word] = out);
+}
+const lookupLink = w => `<a href="https://en.wiktionary.org/wiki/${w}" target="_blank" rel="noopener">Look up ${w.toUpperCase()}</a>`;
+function meaningInto(el, word) {
+  el.innerHTML = '<span class="muted">Looking up the meaning…</span>';
+  fetchMeaning(word).then(list => {
+    el.innerHTML = list.map(m => `<div><span class="pos">${esc(m.pos)}</span><ol>${m.defs.map(d => `<li>${esc(d)}</li>`).join('')}</ol></div>`).join('') + `<div class="small" style="margin-top:6px">${lookupLink(word)}</div>`;
+  }).catch(() => { el.innerHTML = `<span class="muted">Couldn't load a meaning right now.</span> ${lookupLink(word)}`; });
+}
+function openMeaning(word, back) {
+  openDialog(word.toUpperCase(), `<div class="meaning" id="mBox"></div>${back ? '<button class="btn" id="mBack">Back</button>' : ''}`, { after: b => {
+    meaningInto(b.querySelector('#mBox'), word);
+    const bb = b.querySelector('#mBack'); if (bb) bb.onclick = back;
+  } });
+}
+
+/* hints */
+function openHints() {
+  const g = G();
+  const st = keyStates();
+  const unknownPos = [...Array(g.len).keys()].filter(i => !g.reveal[i] && !g.guesses.some(x => x[i] === g.word[i]));
+  const wrong = [...A].filter(c => !g.word.includes(c) && !st[c]);
+  openDialog('Need a hint?', `
+    <p class="small muted">Hints are counted in your results, so everyone knows who went it alone.</p>
+    <div class="hint-opts">
+      <button class="btn" id="hLetter" ${unknownPos.length > 1 ? '' : 'disabled'}>${ICON.bulb}<span>Show one letter<small>Reveals a letter in its correct spot above the board.</small></span></button>
+      <button class="btn" id="hRule" ${wrong.length ? '' : 'disabled'}>${ICON.bulb}<span>Rule out 4 letters<small>Greys out 4 keyboard letters that aren't in the word.</small></span></button>
+      <button class="btn" id="hClue" ${g.clue ? 'disabled' : ''}>${ICON.bulb}<span>Give me a clue<small>Shows what the word means, with the word hidden. Needs internet.</small></span></button>
+    </div>
+    <div id="hClueBox"></div>
+  `, { after: b => {
+    const use = () => { g.hints++; save(); renderActions(); };
+    b.querySelector('#hLetter').onclick = () => {
+      const i = unknownPos[randInt(unknownPos.length)];
+      g.reveal[i] = g.word[i]; use(); renderHints(); sizeBoard(); closeDialog();
+    };
+    b.querySelector('#hRule').onclick = () => {
+      for (let n = 0; n < 4 && wrong.length; n++) g.ruled.push(wrong.splice(randInt(wrong.length), 1)[0]);
+      use(); renderKeyboard(); closeDialog();
+    };
+    b.querySelector('#hClue').onclick = async e => {
+      const box = b.querySelector('#hClueBox');
+      e.currentTarget.disabled = true;
+      box.innerHTML = '<div class="clue muted">Finding a clue…</div>';
+      try {
+        const list = await fetchMeaning(g.word);
+        const re = new RegExp(g.word.slice(0, Math.max(3, g.len - 2)) + '\\w*', 'gi');
+        const m = list[0];
+        box.innerHTML = `<div class="clue"><span class="pos">${esc(m.pos)}</span> ${esc(m.defs[0]).replace(re, '_____')}</div>`;
+        g.clue = true; use();
+      } catch { box.innerHTML = `<div class="clue muted">Couldn't fetch a clue (you may be offline). No hint was used.</div>`; e.currentTarget.disabled = false; }
+    };
+  } });
+}
+
+/* give up */
+function confirmGiveUp() {
+  openDialog('Give up?', `<p>The word will be shown and this game counts as a loss, which resets ${esc(P().name)}'s win streak.</p>
+    <div class="btns"><button class="btn" id="gKeep">Keep trying</button><button class="btn danger" id="gGive">Show the word</button></div>`, { after: b => {
+    b.querySelector('#gKeep').onclick = closeDialog;
+    b.querySelector('#gGive').onclick = () => { bankTime(); finish(false); save(); closeDialog(); render(); openResult(); };
+  } });
+}
+
+/* new word button */
+function requestNew() {
+  const g = G();
+  if (!g || g.done || !g.guesses.length) return newGame();
+  openDialog('Start a new word?', `<p>You're part-way through this one. Starting a new word counts this game as a loss.</p>
+    <div class="btns"><button class="btn" id="nKeep">Keep playing</button><button class="btn danger" id="nNew">New word</button></div>`, { after: b => {
+    b.querySelector('#nKeep').onclick = closeDialog;
+    b.querySelector('#nNew').onclick = () => { bankTime(); finish(false); save(); closeDialog(); toast(`It was ${g.word.toUpperCase()}`, 2200); newGame(); };
+  } });
+}
+
+/* result + share */
+function shareText(g) {
+  const sq = DB.settings.contrast ? { hit: '🟧', near: '🟦', miss: '⬜' } : { hit: '🟩', near: '🟨', miss: '⬜' };
+  const head = `Guesswork ${g.len}-letter${g.challenge ? ' challenge' : ''} ${g.won ? g.guesses.length : 'X'}/6${g.hard ? '*' : ''}`;
+  const extra = [P().prefs.timer ? fmtTime(g.elapsed) : null, g.hints ? `${g.hints} hint${g.hints > 1 ? 's' : ''}` : 'no hints'].filter(Boolean).join(' · ');
+  const grid = g.guesses.map(x => score(x, g.word).map(m => sq[m]).join('')).join('\n');
+  let t = `${head}\n${extra}\n\n${grid}`;
+  t += `\n\nPlay this word: ${baseUrl()}#play-${encodeWord(g.word)}`;
+  return t;
+}
+async function shareOrCopy(text, btn) {
+  if (navigator.share && /Android|iPhone|iPad/.test(navigator.userAgent)) {
+    try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(text); toast('Copied. Paste it into a message.'); }
+  catch {
+    const area = document.createElement('textarea');
+    area.value = text; area.rows = 8; area.style.cssText = 'width:100%;font:14px var(--font-body);border-radius:10px;padding:10px;background:var(--bg);color:var(--ink);border:1px solid var(--line)';
+    btn.closest('.dlg-body').appendChild(area); area.focus(); area.select();
+    toast('Select and copy the text below');
+  }
+}
+function openResult() {
+  const g = G(), p = P(); if (!g || !g.done) return;
+  const s = statsFor(p, g.len);
+  const last = score(g.word, g.word);
+  openDialog(g.won ? WIN_MSG[g.guesses.length - 1] : 'Not this time', `
+    <div class="result-word">${tilesHtml(g.word, g.won ? last : last.map(() => 'miss'))}</div>
+    <p class="small muted" style="text-align:center">${g.won ? `Solved in ${g.guesses.length} of 6` : 'The word was above'} · ${fmtTime(g.elapsed)}${g.hints ? ` · ${g.hints} hint${g.hints > 1 ? 's' : ''}` : ''}</p>
+    <div class="meaning" id="rMeaning"></div>
+    <div class="statgrid">
+      <div><b>${s.played}</b><span>Played</span></div>
+      <div><b>${s.played ? Math.round(100 * s.won / s.played) : 0}</b><span>Win %</span></div>
+      <div><b>${s.streak}</b><span>Win streak</span></div>
+      <div><b>${s.best}</b><span>Best streak</span></div>
+    </div>
+    <div class="btns">
+      <button class="btn primary" id="rNext">${ICON.next}Next word</button>
+      <button class="btn" id="rShare">${ICON.share}Share result</button>
+      <button class="btn" id="rStats">Statistics</button>
+      <button class="btn" id="rChal">${ICON.people}Challenge someone</button>
+    </div>`, { after: b => {
+    meaningInto(b.querySelector('#rMeaning'), g.word);
+    b.querySelector('#rNext').onclick = () => { closeDialog(); newGame(); };
+    b.querySelector('#rShare').onclick = e => shareOrCopy(shareText(g), e.currentTarget);
+    b.querySelector('#rStats').onclick = () => openStats('me', g.len);
+    b.querySelector('#rChal').onclick = () => showCode(g.word, true);
+  } });
+}
+
+/* challenges */
+function showCode(word, played) {
+  const code = encodeWord(word), link = `${baseUrl()}#play-${code}`;
+  openDialog('Challenge code', `
+    <p>${played ? 'Give someone the word you just played.' : 'Your word is ready.'} They can open the link, or type the code into <b>Challenge → Enter a code</b>.</p>
+    <div class="code" aria-label="Challenge code">${code}</div>
+    <div class="btns">
+      <button class="btn primary" id="cShare">${ICON.share}Send link</button>
+      <button class="btn" id="cCopy">${ICON.copy}Copy code</button>
+    </div>
+    <div class="sec"><h3>Same phone?</h3>
+      <p class="small muted">Hand the phone over and pick who plays this word.</p>
+      <div class="btns" style="margin-top:8px">${DB.players.map(pl => `<button class="btn" data-pl="${pl.id}"><span class="badge" style="width:22px;height:22px;font-size:11px;background:var(--${pl.color})">${esc((pl.name.trim()[0] || '?').toUpperCase())}</span>${esc(pl.name)}</button>`).join('')}</div>
+    </div>`, { after: b => {
+    b.querySelector('#cShare').onclick = e => shareOrCopy(`Can you guess my ${word.length}-letter word in Guesswork? Code ${code}\n${link}`, e.currentTarget);
+    b.querySelector('#cCopy').onclick = async () => { try { await navigator.clipboard.writeText(code); toast('Code copied'); } catch { toast('Code: ' + code, 3000); } };
+    b.querySelectorAll('[data-pl]').forEach(x => x.onclick = () => startChallenge(word, x.dataset.pl));
+  } });
+}
+function startChallenge(word, playerId) {
+  if (playerId) { bankTime(); save(); DB.active = playerId; }
+  const g = G();
+  if (g && !g.done && g.guesses.length) { finish(false); toast(`Previous word was ${g.word.toUpperCase()}`, 2200); }
+  closeDialog();
+  newGame({ word, challenge: true });
+  toast(`${P().name}: challenge word loaded`, 2000);
+}
+function openChallenge() {
+  openDialog('Challenge', `
+    <div class="sec"><h3>Enter a code</h3>
+      <div class="field"><input id="cIn" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. QZKWMB" maxlength="10" aria-label="Challenge code"><span class="err" id="cErr"></span></div>
+      <button class="btn primary" id="cGo" style="width:100%">${ICON.play}Play this code</button>
+    </div>
+    <div class="sec"><h3>Pick a word for someone</h3>
+      <p class="small muted" style="margin-bottom:8px">Choose any 4 to 7 letter word, for example a spelling word your kids are learning.</p>
+      <div class="field"><input id="wIn" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Secret word" maxlength="7" aria-label="Secret word"><span class="err" id="wErr"></span></div>
+      <button class="btn" id="wGo" style="width:100%">Make a challenge</button>
+    </div>
+    <div class="sec"><h3>Same word, separate phones</h3>
+      <p class="small muted">Finish a game, then tap <b>Challenge someone</b> to send that exact word to your partner or kids. Compare guesses and times afterwards.</p>
+    </div>`, { after: b => {
+    const go = () => {
+      const w = decodeWord(b.querySelector('#cIn').value);
+      if (!w) { b.querySelector('#cErr').textContent = "That code doesn't work. Check the letters and try again."; return; }
+      startChallenge(w);
+    };
+    b.querySelector('#cGo').onclick = go;
+    b.querySelector('#cIn').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+    const make = () => {
+      const w = b.querySelector('#wIn').value.toLowerCase().trim();
+      const err = b.querySelector('#wErr');
+      if (!/^[a-z]{4,7}$/.test(w)) { err.textContent = 'Use 4 to 7 letters, no spaces.'; return; }
+      if (!W.valid[w.length].has(w)) { err.textContent = "That word isn't in our list. Try another."; return; }
+      showCode(w, false);
+    };
+    b.querySelector('#wGo').onclick = make;
+    b.querySelector('#wIn').addEventListener('keydown', e => { if (e.key === 'Enter') make(); });
+  } });
+}
+function checkHash() {
+  const m = /^#play-([A-Za-z]{5,8})$/.exec(location.hash);
+  if (!m || !W.ready) return;
+  const w = decodeWord(m[1]);
+  try { history.replaceState(null, '', baseUrl()); } catch { /* ignore */ }
+  if (!w) { toast("That challenge link doesn't work"); return; }
+  const g = G();
+  if (g && g.challenge && g.word === w && !g.done) return;
+  openDialog('You got a challenge', `<p>Someone sent you a ${w.length}-letter word. Who's playing it?</p>
+    <div class="btns">${DB.players.map(pl => `<button class="btn ${pl.id === DB.active ? 'primary' : ''}" data-pl="${pl.id}">${esc(pl.name)}</button>`).join('')}</div>`, { after: b => {
+    b.querySelectorAll('[data-pl]').forEach(x => x.onclick = () => startChallenge(w, x.dataset.pl));
+  } });
+}
+window.addEventListener('hashchange', checkHash);
+
+/* header wiring */
+$('btnHelp').onclick = openHelp;
+$('btnWho').onclick = openPlayers;
+$('btnNew').onclick = () => { if (W.ready) requestNew(); };
+$('btnStats').onclick = () => { if (G()) openStats(); };
+$('btnSettings').onclick = openSettings;
+window.addEventListener('resize', sizeBoard);
+if (window.visualViewport) visualViewport.addEventListener('resize', sizeBoard);
+
+/* install prompt (Android Chrome) */
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
+
+/* ------------------------------------------------------------------ boot */
+async function start() {
+  applyTheme();
+  renderWho();
+  try { await loadWords(); }
+  catch { $('loading').textContent = "Couldn't load the word list. Check your connection and reload."; return; }
+  $('loading').remove();
+  if (!P().game || (P().game.word && !W.valid[P().game.len]?.has(P().game.word))) newGame(); else render();
+  resumeAt = Date.now();
+  if (/^#play-/.test(location.hash)) checkHash();
+  else if (!DB.seenHelp) openHelp();
+}
+window.claude?.hot?.snapshot?.(() => ({}));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start();
+
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !window.claude) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+// expose pure logic for tests
+window.__guesswork = { score, hardModeProblem, encodeWord, decodeWord };
+})();
+</script>
+<!--ARTIFACT:PAUSE-->
+</body>
+</html>
