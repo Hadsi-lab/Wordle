@@ -138,7 +138,9 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid 
 .tile.flip { animation: flip .5s ease-in-out both; }
 .row.shake { animation: shake .45s; }
 .tile.dance { animation: dance .5s ease-in-out both; }
-.tile.cursor { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.row.current .tile { cursor: pointer; }
+.tile.cursor { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.tile.filled.cursor { border-color: var(--accent); }
 @keyframes pop { 50% { transform: scale(1.1); } }
 @keyframes flip {
   0% { transform: rotateX(0); background: var(--surface); color: var(--ink); border-color: var(--muted); }
@@ -456,7 +458,11 @@ const fmtTime = ms => { const s = Math.round(ms / 1000); return s >= 3600 ? '59:
 
 /* ---------------------------------------------------------------- game state */
 let busy = false;
-let typed = '';
+// The row being typed: one slot per letter, plus the square the next letter goes into.
+let slots = [];
+let cur = 0;
+const resetTyped = () => { slots = []; cur = 0; };
+const filled = () => slots.filter(Boolean).length;
 const $ = id => document.getElementById(id);
 
 function newGame({ word = null, challenge = false } = {}) {
@@ -468,7 +474,7 @@ function newGame({ word = null, challenge = false } = {}) {
     guesses: [], reveal: {}, ruled: [], clue: false, hints: 0,
     elapsed: 0, done: false, won: false, started: Date.now()
   };
-  typed = '';
+  resetTyped();
   save();
   render();
 }
@@ -478,7 +484,7 @@ const G = () => P().game;
 let resumeAt = Date.now();
 function bankTime() {
   const g = G();
-  if (g && !g.done && g.guesses.length + typed.length > 0 && document.visibilityState === 'visible') g.elapsed += Date.now() - resumeAt;
+  if (g && !g.done && g.guesses.length + filled() > 0 && document.visibilityState === 'visible') g.elapsed += Date.now() - resumeAt;
   resumeAt = Date.now();
 }
 setInterval(() => { bankTime(); renderMeta(); }, 1000);
@@ -563,13 +569,14 @@ function paintTyping() {
   [...$('board').children].forEach(x => x.classList.remove('current'));
   row.classList.add('current');
   [...row.children].forEach((t, i) => {
-    const ch = typed[i] || '';
+    const ch = slots[i] || '';
     if (t.textContent !== ch) {
       t.textContent = ch;
       t.className = 'tile' + (ch ? ' filled' : '');
     }
-    t.classList.toggle('cursor', i === typed.length);
-    t.removeAttribute('aria-label');
+    t.classList.toggle('cursor', i === cur);
+    t.dataset.pos = i;
+    t.setAttribute('aria-label', `Square ${i + 1}${ch ? ', ' + ch.toUpperCase() : ', empty'}. Tap to change.`);
   });
 }
 function renderHints() {
@@ -652,12 +659,36 @@ function onKey(k) {
   if (!W.ready || !g || busy || $('dlg').open) return;
   if (g.done) { if (k === 'enter') newGame(); return; }
   if (k === 'enter') return submit();
-  if (k === 'back') { typed = typed.slice(0, -1); paintTyping(); return; }
-  if (/^[a-z]$/.test(k) && typed.length < g.len) {
-    if (!typed.length && !g.guesses.length) resumeAt = Date.now();
-    typed += k; paintTyping(); buzz(8);
+  if (k === 'left') { cur = Math.max(0, cur - 1); paintTyping(); return; }
+  if (k === 'right') { cur = Math.min(g.len - 1, cur + 1); paintTyping(); return; }
+  if (k === 'back') {
+    // Clear the selected square if it has a letter, otherwise step back and clear.
+    if (cur < g.len && slots[cur]) slots[cur] = '';
+    else if (cur > 0) { cur--; slots[cur] = ''; }
+    paintTyping(); return;
+  }
+  if (/^[a-z]$/.test(k) && cur < g.len) {
+    if (!filled() && !g.guesses.length) resumeAt = Date.now();
+    slots[cur] = k;
+    // Move to the next empty square after this one, then any empty square, else past the end.
+    let next = -1;
+    for (let i = cur + 1; i < g.len; i++) if (!slots[i]) { next = i; break; }
+    if (next < 0) for (let i = 0; i < g.len; i++) if (!slots[i]) { next = i; break; }
+    cur = next < 0 ? g.len : next;
+    paintTyping(); buzz(8);
   }
 }
+function selectSquare(i) {
+  const g = G();
+  if (!W.ready || !g || g.done || busy) return;
+  cur = i; paintTyping(); buzz(5);
+}
+$('board').addEventListener('click', e => {
+  const t = e.target.closest('.tile');
+  const g = G();
+  if (!t || !g || g.done || t.parentElement !== $('board').children[g.guesses.length]) return;
+  selectSquare([...t.parentElement.children].indexOf(t));
+});
 function shakeRow(msg) {
   const row = $('board').children[G().guesses.length];
   row.classList.remove('shake'); void row.offsetWidth; row.classList.add('shake');
@@ -665,12 +696,13 @@ function shakeRow(msg) {
 }
 function submit() {
   const g = G();
-  if (typed.length < g.len) return shakeRow('Not enough letters');
+  if (filled() < g.len) return shakeRow('Not enough letters');
+  const typed = slots.join('');
   if (!W.valid[g.len].has(typed)) return shakeRow('Not in our word list');
   if (g.guesses.includes(typed)) return shakeRow('You already tried that');
   if (g.hard) { const prob = hardModeProblem(typed, g); if (prob) return shakeRow(prob); }
   bankTime();
-  const guess = typed; typed = '';
+  const guess = typed; resetTyped();
   g.guesses.push(guess);
   const marks = score(guess, g.word);
   const r = g.guesses.length - 1;
@@ -712,8 +744,8 @@ document.addEventListener('keydown', e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
   if ($('dlg').open) return;
-  const k = e.key === 'Enter' ? 'enter' : e.key === 'Backspace' ? 'back' : e.key.toLowerCase();
-  if (k === 'enter' || k === 'back' || /^[a-z]$/.test(k)) { e.preventDefault(); onKey(k); }
+  const k = e.key === 'Enter' ? 'enter' : e.key === 'Backspace' ? 'back' : e.key === 'ArrowLeft' ? 'left' : e.key === 'ArrowRight' ? 'right' : e.key.toLowerCase();
+  if (k === 'enter' || k === 'back' || k === 'left' || k === 'right' || /^[a-z]$/.test(k)) { e.preventDefault(); onKey(k); }
 });
 $('kb').addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (b) { onKey(b.dataset.k); b.blur(); } });
 
@@ -747,6 +779,7 @@ function openHelp() {
     <div class="sec"><h3>What's extra here</h3>
       <ul class="tight small">
         <li><b>Unlimited.</b> Tap <b>Next word</b> as often as you like.</li>
+        <li><b>Fix one letter.</b> Tap any square in the row you're typing, then tap a letter to replace just that one.</li>
         <li><b>A profile for everyone.</b> Each player keeps their own streaks, stats, settings and unfinished game.</li>
         <li><b>Easy, Normal or Tricky</b> word pools, and 4, 5, 6 or 7 letters.</li>
         <li><b>Fair answers.</b> Answers are common words, never plurals or past tenses. Australian, British and American spellings are all accepted as guesses.</li>
@@ -795,7 +828,7 @@ function openPlayers() {
       }));
       b.querySelectorAll('[data-act="pick"]').forEach(btn => btn.onclick = () => {
         bankTime(); save();
-        DB.active = btn.closest('.prow').dataset.id; typed = ''; save();
+        DB.active = btn.closest('.prow').dataset.id; resetTyped(); save();
         if (!P().game) newGame(); else render();
         closeDialog(); toast(`${P().name} is playing`);
       });
@@ -812,7 +845,7 @@ function openPlayers() {
       const del = b.querySelector('[data-act="del"]');
       if (del) del.onclick = () => {
         DB.players = DB.players.filter(p => p.id !== del.dataset.id);
-        DB.active = DB.players[0].id; typed = ''; save();
+        DB.active = DB.players[0].id; resetTyped(); save();
         if (!P().game) newGame(); else render();
         draw();
       };

@@ -41,6 +41,19 @@ const assert = (c, m) => { if (!c) { console.error('FAIL', m); process.exitCode 
 
   // close help, play a game to a win by cheating the stored word
   await page.click('#hPlay');
+  // tap-to-edit: type MOUSE, tap square 1, press H -> HOUSE; tap square 3, Delete clears only that square
+  for (const c of 'mouse') await page.click(`.key[data-k="${c}"]`);
+  const rowText = () => page.evaluate(() => [...document.querySelectorAll('.row.current .tile')].map(t => t.textContent || '_').join(''));
+  await page.click('.row.current .tile >> nth=0');
+  await page.click('.key[data-k="h"]');
+  assert(await rowText() === 'house', 'tap a square and retype one letter: ' + await rowText());
+  await page.click('.row.current .tile >> nth=2');
+  await page.click('.key[data-k="back"]');
+  assert(await rowText() === 'ho_se', 'delete clears just the selected square: ' + await rowText());
+  await page.click('.key[data-k="u"]');
+  assert(await rowText() === 'house', 'typing fills the cleared square');
+  for (let i = 0; i < 5; i++) await page.click('.key[data-k="back"]');
+  assert(await rowText() === '_____', 'delete still clears the row from the end');
   const word = await page.evaluate(() => JSON.parse(localStorage.getItem('guesswork.v1')).players[0].game.word);
   const type = async w => { for (const c of w) await page.click(`.key[data-k="${c}"]`); await page.click('.key[data-k="enter"]'); };
   await type('zzzzz');
