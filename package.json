@@ -1,5 +1,5 @@
 {
-  "name": "guesswork",
+  "name": "hadsi-words",
   "private": true,
   "version": "1.0.0",
   "description": "Unlimited five-letter (and 4/6/7-letter) word guessing game for the whole family. Static PWA.",

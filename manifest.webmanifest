@@ -1,6 +1,6 @@
 {
-  "name": "Guesswork Unlimited",
-  "short_name": "Guesswork",
+  "name": "Hadsi Words",
+  "short_name": "Hadsi Words",
   "description": "Guess the hidden word in six tries. Unlimited games for the whole family.",
   "start_url": "./",
   "scope": "./",

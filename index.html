@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <!--ARTIFACT:START-->
-<title>Guesswork Unlimited</title>
+<title>Hadsi Words</title>
 <!--ARTIFACT:END-->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Guesswork">
+<meta name="apple-mobile-web-app-title" content="Hadsi Words">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -296,7 +296,7 @@ ul.tight { margin: 0; padding-left: 18px; display: flex; flex-direction: column;
       <button class="who" id="btnWho" aria-label="Change player"><span class="badge" id="whoBadge">P</span><span class="nm" id="whoName">Player</span></button>
     </div>
     <div class="brand">
-      <h1>Guess<span>work</span></h1>
+      <h1>Hadsi <span>Words</span></h1>
       <div class="meta" id="meta">&nbsp;</div>
     </div>
     <div class="right">
@@ -845,7 +845,7 @@ function openSettings() {
         ${sw('sEnter', s.enterRight, 'Enter key on the right', 'Swap Enter and Delete to avoid mis-taps.')}
       </div>
     </div>
-    <p class="small muted">Guesswork has no ads, no accounts and no tracking. Everything stays on this phone.</p>
+    <p class="small muted">Hadsi Words has no ads, no accounts and no tracking. Everything stays on this phone.</p>
   `, { after: b => {
     const note = () => {
       const g = G();
@@ -1015,7 +1015,7 @@ function requestNew() {
 /* result + share */
 function shareText(g) {
   const sq = DB.settings.contrast ? { hit: '🟧', near: '🟦', miss: '⬜' } : { hit: '🟩', near: '🟨', miss: '⬜' };
-  const head = `Guesswork ${g.len}-letter${g.challenge ? ' challenge' : ''} ${g.won ? g.guesses.length : 'X'}/6${g.hard ? '*' : ''}`;
+  const head = `Hadsi Words ${g.len}-letter${g.challenge ? ' challenge' : ''} ${g.won ? g.guesses.length : 'X'}/6${g.hard ? '*' : ''}`;
   const extra = [P().prefs.timer ? fmtTime(g.elapsed) : null, g.hints ? `${g.hints} hint${g.hints > 1 ? 's' : ''}` : 'no hints'].filter(Boolean).join(' · ');
   const grid = g.guesses.map(x => score(x, g.word).map(m => sq[m]).join('')).join('\n');
   let t = `${head}\n${extra}\n\n${grid}`;
@@ -1076,7 +1076,7 @@ function showCode(word, played) {
       <p class="small muted">Hand the phone over and pick who plays this word.</p>
       <div class="btns" style="margin-top:8px">${DB.players.map(pl => `<button class="btn" data-pl="${pl.id}"><span class="badge" style="width:22px;height:22px;font-size:11px;background:var(--${pl.color})">${esc((pl.name.trim()[0] || '?').toUpperCase())}</span>${esc(pl.name)}</button>`).join('')}</div>
     </div>`, { after: b => {
-    b.querySelector('#cShare').onclick = e => shareOrCopy(`Can you guess my ${word.length}-letter word in Guesswork? Code ${code}\n${link}`, e.currentTarget);
+    b.querySelector('#cShare').onclick = e => shareOrCopy(`Can you guess my ${word.length}-letter word in Hadsi Words? Code ${code}\n${link}`, e.currentTarget);
     b.querySelector('#cCopy').onclick = async () => { try { await navigator.clipboard.writeText(code); toast('Code copied'); } catch { toast('Code: ' + code, 3000); } };
     b.querySelectorAll('[data-pl]').forEach(x => x.onclick = () => startChallenge(word, x.dataset.pl));
   } });

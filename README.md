@@ -1,4 +1,4 @@
-# Guesswork Unlimited
+# Hadsi Words
 
 A word-guessing game for phones (iPhone and Android). Guess the hidden word in six tries: green means right letter, right spot; gold means right letter, wrong spot; grey means not in the word.
 
