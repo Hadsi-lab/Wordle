@@ -280,6 +280,44 @@ table.fam .pn .badge { width: 24px; height: 24px; font-size: 12px; }
 .hint-opts .btn small { display: block; font-weight: 500; color: var(--muted); font-size: 12px; }
 .clue { background: var(--bg); border-radius: 12px; padding: 12px 14px; }
 ul.tight { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+[hidden] { display: none !important; }
+
+/* Mode switch */
+.modes { display: flex; justify-content: center; padding-block: 0 4px; }
+.modes .seg { width: min(260px, 100%); }
+.modes .seg button { padding: 6px 4px; font-size: 13.5px; }
+
+/* Hangman */
+.hang { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding-block: 4px; }
+.hang svg { flex: 1 1 auto; min-height: 110px; max-height: 300px; width: 100%; overflow: visible; }
+.hang svg.shake { animation: shake .45s; }
+.hp { fill: none; stroke: var(--ink); stroke-width: 7; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0; opacity: 0; }
+.hp.gallows { stroke: var(--muted); }
+.hp.on { opacity: 1; }
+.hp.fresh { animation: draw .45s ease-out both; }
+@keyframes draw { from { stroke-dashoffset: 1; } }
+.hang svg.lost .hp.man { stroke: var(--danger); }
+.hang svg.won .hp.man { stroke: var(--hit); }
+.face { fill: none; stroke: var(--ink); stroke-width: 3.5; stroke-linecap: round; }
+.hang svg.lost .face { stroke: var(--danger); }
+.hang svg.won .face { stroke: var(--hit); }
+.hang-info { font-weight: 700; color: var(--muted); font-size: 14px; display: flex; gap: 10px; align-items: center; font-variant-numeric: tabular-nums; }
+.lives { display: flex; gap: 4px; }
+.lives i { width: 10px; height: 10px; border-radius: 50%; background: var(--hit); }
+.lives i.gone { background: var(--line); }
+.hang-word { display: flex; gap: 6px; justify-content: center; }
+.hang-word .slot {
+  width: var(--slot, 44px); height: calc(var(--slot, 44px) * 1.15); border-bottom: 4px solid var(--ink);
+  display: grid; place-items: center; text-transform: uppercase;
+  font: 800 calc(var(--slot, 44px) * .7)/1 var(--font-display);
+}
+.hang-word .slot.got { animation: pop .15s ease-out; }
+.hang-word .slot.hinted { color: var(--hit); }
+.hang-word .slot.missed { color: var(--danger); }
+.hang-wrong { min-height: 1.4em; font-weight: 700; letter-spacing: .14em; color: var(--muted); text-transform: uppercase; font-size: 15px; text-align: center; }
+.hang-wrong span { letter-spacing: 0; text-transform: none; font-weight: 600; margin-right: 6px; }
+.key:disabled { cursor: default; }
+
 .loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-weight: 600; }
 
 @media (max-height: 640px) { .key { height: 44px; } .kb { gap: 5px; } .top { padding-block: 4px 2px; } }
@@ -308,10 +346,35 @@ ul.tight { margin: 0; padding-left: 18px; display: flex; flex-direction: column;
     </div>
   </header>
 
+  <nav class="modes" aria-label="Game"><div class="seg" role="tablist" id="modes">
+    <button role="tab" data-mode="words" aria-pressed="true">Words</button>
+    <button role="tab" data-mode="hangman" aria-pressed="false">Hangman</button>
+  </div></nav>
+
   <main class="stage" id="stage">
     <div class="toasts" id="toasts" aria-live="polite"></div>
     <div class="hintstrip" id="hintstrip" hidden aria-label="Letters revealed by hints"></div>
     <div class="board" id="board" role="grid" aria-label="Guesses"></div>
+    <section class="hang" id="hang" hidden aria-label="Hangman">
+      <svg id="hangSvg" viewBox="0 0 200 232" role="img" aria-label="Hangman drawing">
+        <line class="hp gallows" data-part="base" pathLength="1" x1="14" y1="222" x2="132" y2="222"/>
+        <line class="hp gallows" data-part="post" pathLength="1" x1="44" y1="222" x2="44" y2="14"/>
+        <line class="hp gallows" data-part="beam" pathLength="1" x1="44" y1="14" x2="146" y2="14"/>
+        <line class="hp gallows" data-part="brace" pathLength="1" x1="44" y1="52" x2="82" y2="14"/>
+        <line class="hp gallows" data-part="rope" pathLength="1" x1="146" y1="14" x2="146" y2="46"/>
+        <circle class="hp man" data-part="head" pathLength="1" cx="146" cy="68" r="22"/>
+        <line class="hp man" data-part="body" pathLength="1" x1="146" y1="90" x2="146" y2="154"/>
+        <line class="hp man" data-part="armL" pathLength="1" x1="146" y1="106" x2="118" y2="136"/>
+        <line class="hp man" data-part="armR" pathLength="1" x1="146" y1="106" x2="174" y2="136"/>
+        <line class="hp man" data-part="legL" pathLength="1" x1="146" y1="154" x2="122" y2="196"/>
+        <line class="hp man" data-part="legR" pathLength="1" x1="146" y1="154" x2="170" y2="196"/>
+        <path class="face" id="faceLost" hidden d="M136 61l7 7M143 61l-7 7M149 61l7 7M156 61l-7 7M138 81q8-6 16 0"/>
+        <path class="face" id="faceWon" hidden d="M139 64h.01M153 64h.01M137 74q9 8 18 0"/>
+      </svg>
+      <div class="hang-info" id="hangInfo" aria-live="polite"></div>
+      <div class="hang-word" id="hangWord" aria-label="Word"></div>
+      <div class="hang-wrong" id="hangWrong"></div>
+    </section>
     <div class="loading" id="loading">Loading words…</div>
   </main>
 
@@ -441,9 +504,9 @@ function encodeWord(w) {
   }
   return (out + A[sum % 26]).toUpperCase();
 }
-function decodeWord(code) {
+function decodeWord(code, anyWord = false) {
   code = (code || '').toLowerCase().replace(/[^a-z]/g, '');
-  if (code.length < 5 || code.length > 8) return null;
+  if (code.length < 5 || code.length > 13) return null;
   const body = code.slice(0, -1);
   let sum = 0, w = '';
   for (let i = 0; i < body.length; i++) {
@@ -451,6 +514,7 @@ function decodeWord(code) {
     w += A[c]; sum += c * (i + 1);
   }
   if (A[sum % 26] !== code.at(-1)) return null;
+  if (anyWord) return w;
   return W.valid[w.length]?.has(w) ? w : null;
 }
 const baseUrl = () => location.href.split('#')[0];
@@ -483,8 +547,9 @@ const G = () => P().game;
 /* timer */
 let resumeAt = Date.now();
 function bankTime() {
-  const g = G();
-  if (g && !g.done && g.guesses.length + filled() > 0 && document.visibilityState === 'visible') g.elapsed += Date.now() - resumeAt;
+  const g = curGame();
+  const started = g && (isHang() ? g.guessed.length > 0 : g.guesses.length + filled() > 0);
+  if (g && !g.done && started && document.visibilityState === 'visible') g.elapsed += Date.now() - resumeAt;
   resumeAt = Date.now();
 }
 setInterval(() => { bankTime(); renderMeta(); }, 1000);
@@ -503,14 +568,22 @@ function renderWho() {
   $('whoName').textContent = p.name;
 }
 function renderMeta() {
-  const g = G(); if (!g) return;
   const p = P();
+  if (isHang()) {
+    const h = HG(); if (!h) return;
+    const bits = [`${h.lives} lives`, h.challenge ? 'Challenge' : LEVEL_LABEL[h.level]];
+    if (p.prefs.timer) bits.push(fmtTime(h.elapsed));
+    $('meta').textContent = bits.join(' · ');
+    return;
+  }
+  const g = G(); if (!g) return;
   const bits = [`${g.len} letters`, g.challenge ? 'Challenge' : LEVEL_LABEL[g.level]];
   if (g.hard) bits.push('Hard');
   if (p.prefs.timer) bits.push(fmtTime(g.elapsed));
   $('meta').textContent = bits.join(' · ');
 }
 function sizeBoard() {
+  if (isHang()) return sizeHang();
   const g = G(); if (!g) return;
   const stage = $('stage');
   const hintH = $('hintstrip').hidden ? 0 : 0.42 + 0.15;
@@ -522,9 +595,23 @@ function sizeBoard() {
   const t = Math.max(30, Math.floor(Math.min(byW, byH, 66)));
   document.documentElement.style.setProperty('--tile', t + 'px');
 }
+function renderMode() {
+  const hang = isHang();
+  $('modes').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === (hang ? 'hangman' : 'words')));
+  $('board').hidden = hang;
+  $('hang').hidden = !hang;
+  if (hang) $('hintstrip').hidden = true;
+  $('btnNew').setAttribute('aria-label', hang ? 'New hangman word' : 'New word');
+}
 function render() {
-  const g = G();
   renderWho();
+  renderMode();
+  if (isHang()) {
+    if (!HG()) return;
+    renderHang(); renderKeyboard(); renderActions(); renderMeta();
+    return;
+  }
+  const g = G();
   if (!g) return;
   const board = $('board');
   board.style.setProperty('--cols', g.len);
@@ -605,6 +692,19 @@ function keyStates() {
 }
 function renderKeyboard() {
   const kb = $('kb');
+  if (isHang()) {
+    const g = HG(); if (!g) return;
+    kb.innerHTML = KB_ROWS.map((row, i) => {
+      let keys = [...row].map(c => {
+        const used = g.guessed.includes(c);
+        const st = used ? (g.word.includes(c) ? 'hit' : 'miss') : '';
+        return `<button class="key ${st}" data-k="${c}" ${used || g.done ? 'disabled' : ''} aria-label="${c.toUpperCase()}${used ? (st === 'hit' ? ', in word' : ', not in word') : ''}">${c}</button>`;
+      }).join('');
+      if (i) keys = '<span class="spacer"></span>' + keys + '<span class="spacer"></span>';
+      return `<div class="r">${keys}</div>`;
+    }).join('');
+    return;
+  }
   const st = keyStates();
   const enter = '<button class="key wide" data-k="enter" aria-label="Enter">Enter</button>';
   const back = '<button class="key wide" data-k="back" aria-label="Delete letter"><svg viewBox="0 0 24 24"><path d="M21 5H9l-6 7 6 7h12z"/><path d="M17 9l-5 6M12 9l5 6"/></svg></button>';
@@ -627,6 +727,7 @@ const ICON = {
   play: '<svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>'
 };
 function renderActions() {
+  if (isHang()) return renderHangActions();
   const g = G(), p = P(), el = $('actions');
   if (g.done) {
     el.innerHTML = `<button class="chip primary" id="aNext">${ICON.next}Next word</button><button class="chip" id="aResult">See result</button>`;
@@ -655,6 +756,7 @@ const buzz = pattern => { if (DB.settings.vibrate && navigator.vibrate) try { na
 
 /* ------------------------------------------------------------------ input */
 function onKey(k) {
+  if (isHang()) { if (W.ready && HG() && !$('dlg').open) hangKey(k); return; }
   const g = G();
   if (!W.ready || !g || busy || $('dlg').open) return;
   if (g.done) { if (k === 'enter') newGame(); return; }
@@ -776,6 +878,9 @@ function openHelp() {
     <div><div class="example">${tilesHtml('plant', ['hit', 'miss', 'miss', 'miss', 'miss'])}</div><p class="small"><b>P</b> is in the word and in the right spot.</p></div>
     <div><div class="example">${tilesHtml('cream', ['miss', 'near', 'miss', 'miss', 'miss'])}</div><p class="small"><b>R</b> is in the word but in a different spot.</p></div>
     <div><div class="example">${tilesHtml('shout', ['miss', 'miss', 'miss', 'miss', 'miss'])}</div><p class="small">Grey letters aren't in the word at all.</p></div>
+    <div class="sec"><h3>Hangman</h3>
+      <p class="small">Switch to <b>Hangman</b> at the top. Tap letters to guess the word. Each wrong letter adds a piece to the drawing. Find every letter before it's finished. In Settings, choose 6 mistakes (classic), 8, or 10 (easy).</p>
+    </div>
     <div class="sec"><h3>What's extra here</h3>
       <ul class="tight small">
         <li><b>Unlimited.</b> Tap <b>Next word</b> as often as you like.</li>
@@ -829,7 +934,7 @@ function openPlayers() {
       b.querySelectorAll('[data-act="pick"]').forEach(btn => btn.onclick = () => {
         bankTime(); save();
         DB.active = btn.closest('.prow').dataset.id; resetTyped(); save();
-        if (!P().game) newGame(); else render();
+        ensureGame();
         closeDialog(); toast(`${P().name} is playing`);
       });
       b.querySelectorAll('[data-color]').forEach(btn => btn.onclick = () => { P().color = btn.dataset.color; save(); renderWho(); draw(); });
@@ -846,7 +951,7 @@ function openPlayers() {
       if (del) del.onclick = () => {
         DB.players = DB.players.filter(p => p.id !== del.dataset.id);
         DB.active = DB.players[0].id; resetTyped(); save();
-        if (!P().game) newGame(); else render();
+        ensureGame();
         draw();
       };
     } });
@@ -859,17 +964,31 @@ function openSettings() {
   const p = P(), s = DB.settings;
   const seg = (name, opts, cur, labels) => `<div class="seg" role="group" data-seg="${name}">${opts.map(o => `<button aria-pressed="${o === cur}" data-v="${o}">${labels ? labels[o] : o}</button>`).join('')}</div>`;
   const sw = (id, on, t, d) => `<label class="opt"><div><div class="t">${t}</div>${d ? `<div class="d">${d}</div>` : ''}</div><span class="switch"><input type="checkbox" id="${id}" ${on ? 'checked' : ''}><span></span></span></label>`;
-  openDialog('Settings', `
+  const hang = isHang(), hp = HP(p);
+  const levelField = `<div class="field" style="margin-top:12px"><span class="small"><b>Words</b></span>${seg('level', LEVELS, p.prefs.level, LEVEL_LABEL)}<span class="small muted" id="lvDesc">${LEVEL_DESC[p.prefs.level]}</span></div>`;
+  const playerSec = hang ? `
+    <div class="sec"><h3>${esc(p.name)}'s hangman</h3>
+      <div class="field"><span class="small"><b>Mistakes allowed</b></span>${seg('lives', LIVES, hp.prefs.lives, LIVES_LABEL)}<span class="small muted" id="livesDesc">${LIVES_DESC[hp.prefs.lives]}</span></div>
+      <div class="field" style="margin-top:12px"><span class="small"><b>Word length</b></span>${seg('hlength', [0, ...LENGTHS], hp.prefs.length, { 0: 'Any', 4: '4', 5: '5', 6: '6', 7: '7' })}</div>
+      ${levelField}
+      <div style="margin-top:6px">
+        ${sw('sHints', p.prefs.hints, 'Allow hints', 'Shows the Hint button. Turn off for pure play.')}
+        ${sw('sTimer', p.prefs.timer, 'Show timer', 'Your time is always saved in stats.')}
+      </div>
+      <p class="small muted" id="applyNote"></p>
+    </div>` : `
     <div class="sec"><h3>${esc(p.name)}'s game</h3>
       <div class="field"><span class="small"><b>Word length</b></span>${seg('length', LENGTHS, p.prefs.length, { 4: '4', 5: '5', 6: '6', 7: '7' })}</div>
-      <div class="field" style="margin-top:12px"><span class="small"><b>Words</b></span>${seg('level', LEVELS, p.prefs.level, LEVEL_LABEL)}<span class="small muted" id="lvDesc">${LEVEL_DESC[p.prefs.level]}</span></div>
+      ${levelField}
       <div style="margin-top:6px">
         ${sw('sHard', p.prefs.hard, 'Hard mode', 'Letters you have found must be used in later guesses.')}
         ${sw('sHints', p.prefs.hints, 'Allow hints', 'Shows the Hint button. Turn off for pure play.')}
         ${sw('sTimer', p.prefs.timer, 'Show timer', 'Your solve time is always saved in stats.')}
       </div>
       <p class="small muted" id="applyNote"></p>
-    </div>
+    </div>`;
+  openDialog('Settings', `
+    ${playerSec}
     <div class="sec"><h3>This phone</h3>
       <div class="field"><span class="small"><b>Appearance</b></span>${seg('theme', ['auto', 'light', 'dark'], s.theme, { auto: 'Auto', light: 'Light', dark: 'Dark' })}</div>
       <div style="margin-top:6px">
@@ -881,6 +1000,13 @@ function openSettings() {
     <p class="small muted">Hadsi Words has no ads, no accounts and no tracking. Everything stays on this phone.</p>
   `, { after: b => {
     const note = () => {
+      if (hang) {
+        const h = HG();
+        const differs = h && !h.done && !h.challenge && (h.lives !== hp.prefs.lives || h.level !== p.prefs.level || (hp.prefs.length && h.len !== hp.prefs.length));
+        b.querySelector('#applyNote').innerHTML = differs && h.guessed.length ? 'Changes apply from your next word.' : '';
+        if (differs && !h.guessed.length) newHangGame();
+        return;
+      }
       const g = G();
       const differs = g && !g.done && !g.challenge && (g.len !== p.prefs.length || g.level !== p.prefs.level || g.hard !== p.prefs.hard);
       b.querySelector('#applyNote').innerHTML = differs ? (g.guesses.length ? 'Changes apply from your next word.' : '') : '';
@@ -891,11 +1017,13 @@ function openSettings() {
       group.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === btn));
       const v = btn.dataset.v, name = group.dataset.seg;
       if (name === 'length') p.prefs.length = +v;
+      if (name === 'hlength') hp.prefs.length = +v;
+      if (name === 'lives') { hp.prefs.lives = +v; b.querySelector('#livesDesc').textContent = LIVES_DESC[v]; }
       if (name === 'level') { p.prefs.level = v; b.querySelector('#lvDesc').textContent = LEVEL_DESC[v]; }
       if (name === 'theme') { s.theme = v; applyTheme(); }
       save(); note();
     }));
-    const bind = (id, fn) => b.querySelector('#' + id).addEventListener('change', e => { fn(e.target.checked); save(); });
+    const bind = (id, fn) => { const el = b.querySelector('#' + id); if (el) el.addEventListener('change', e => { fn(e.target.checked); save(); }); };
     bind('sHard', v => { p.prefs.hard = v; note(); });
     bind('sHints', v => { p.prefs.hints = v; renderActions(); });
     bind('sTimer', v => { p.prefs.timer = v; renderMeta(); });
@@ -906,7 +1034,21 @@ function openSettings() {
 }
 
 /* stats */
+function historyHtml(p) {
+  return p.history.length ? `<p class="small muted">Tap a word to see what it means.</p><div class="hist">${p.history.slice(0, 40).map((h, i) => {
+    const date = new Date(h.d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    const level = h.lv === 'challenge' ? 'Challenge' : LEVEL_LABEL[h.lv] || '';
+    const hints = h.h ? ` · ${h.h} hint${h.h > 1 ? 's' : ''}` : '';
+    if (h.m === 'hang') return `
+      <button data-i="${i}"><span class="w">${h.w}</span><span class="r ${h.won ? '' : 'lost'}">${h.won ? `${h.miss} of ${h.lives} wrong` : 'Lost'}</span>
+      <span class="s">Hangman · ${level} · ${fmtTime(h.t)}${hints} · ${date}</span></button>`;
+    return `
+      <button data-i="${i}"><span class="w">${h.w}</span><span class="r ${h.won ? '' : 'lost'}">${h.won ? h.n + '/6' : 'X/6'}</span>
+      <span class="s">Words · ${level}${h.hard ? ' · Hard' : ''} · ${fmtTime(h.t)}${hints} · ${date}</span></button>`;
+  }).join('')}</div>` : '<p class="muted">Finished games will show up here.</p>';
+}
 function openStats(tab = 'me', len = null) {
+  if (isHang()) return openHangStats(tab);
   const p = P();
   len = len || (G() ? G().len : p.prefs.length);
   const tabs = `<button class="chip ${tab === 'me' ? 'primary' : ''}" data-tab="me">${esc(p.name)}</button>
@@ -943,10 +1085,7 @@ function openStats(tab = 'me', len = null) {
       </tbody></table></div>
       <p class="small muted">Everyone plays different words, so for a head-to-head use <b>Challenge</b> to give each player the same word.</p>`;
   } else {
-    html = p.history.length ? `<p class="small muted">Tap a word to see what it means.</p><div class="hist">${p.history.slice(0, 40).map((h, i) => `
-      <button data-i="${i}"><span class="w">${h.w}</span><span class="r ${h.won ? '' : 'lost'}">${h.won ? h.n + '/6' : 'X/6'}</span>
-      <span class="s">${h.lv === 'challenge' ? 'Challenge' : LEVEL_LABEL[h.lv] || ''}${h.hard ? ' · Hard' : ''} · ${fmtTime(h.t)}${h.h ? ` · ${h.h} hint${h.h > 1 ? 's' : ''}` : ''} · ${new Date(h.d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span></button>`).join('')}</div>`
-      : '<p class="muted">Finished games will show up here.</p>';
+    html = historyHtml(p);
   }
   openDialog('Statistics', html, { tabs, after: b => {
     $('dlgTabs').querySelectorAll('[data-tab]').forEach(x => x.onclick = () => openStats(x.dataset.tab, len));
@@ -1027,6 +1166,7 @@ function openHints() {
 
 /* give up */
 function confirmGiveUp() {
+  if (isHang()) return confirmHangGiveUp();
   openDialog('Give up?', `<p>The word will be shown and this game counts as a loss, which resets ${esc(P().name)}'s win streak.</p>
     <div class="btns"><button class="btn" id="gKeep">Keep trying</button><button class="btn danger" id="gGive">Show the word</button></div>`, { after: b => {
     b.querySelector('#gKeep').onclick = closeDialog;
@@ -1036,6 +1176,7 @@ function confirmGiveUp() {
 
 /* new word button */
 function requestNew() {
+  if (isHang()) return requestNewHang();
   const g = G();
   if (!g || g.done || !g.guesses.length) return newGame();
   openDialog('Start a new word?', `<p>You're part-way through this one. Starting a new word counts this game as a loss.</p>
@@ -1096,8 +1237,9 @@ function openResult() {
 }
 
 /* challenges */
-function showCode(word, played) {
-  const code = encodeWord(word), link = `${baseUrl()}#play-${code}`;
+function showCode(word, played, mode = isHang() ? 'hangman' : 'words') {
+  const hang = mode === 'hangman';
+  const code = encodeWord(word), link = `${baseUrl()}#${hang ? 'hang' : 'play'}-${code}`;
   openDialog('Challenge code', `
     <p>${played ? 'Give someone the word you just played.' : 'Your word is ready.'} They can open the link, or type the code into <b>Challenge → Enter a code</b>.</p>
     <div class="code" aria-label="Challenge code">${code}</div>
@@ -1109,13 +1251,24 @@ function showCode(word, played) {
       <p class="small muted">Hand the phone over and pick who plays this word.</p>
       <div class="btns" style="margin-top:8px">${DB.players.map(pl => `<button class="btn" data-pl="${pl.id}"><span class="badge" style="width:22px;height:22px;font-size:11px;background:var(--${pl.color})">${esc((pl.name.trim()[0] || '?').toUpperCase())}</span>${esc(pl.name)}</button>`).join('')}</div>
     </div>`, { after: b => {
-    b.querySelector('#cShare').onclick = e => shareOrCopy(`Can you guess my ${word.length}-letter word in Hadsi Words? Code ${code}\n${link}`, e.currentTarget);
+    b.querySelector('#cShare').onclick = e => shareOrCopy(hang ? `Can you save the hangman? My ${word.length}-letter word in Hadsi Words: code ${code}\n${link}` : `Can you guess my ${word.length}-letter word in Hadsi Words? Code ${code}\n${link}`, e.currentTarget);
     b.querySelector('#cCopy').onclick = async () => { try { await navigator.clipboard.writeText(code); toast('Code copied'); } catch { toast('Code: ' + code, 3000); } };
-    b.querySelectorAll('[data-pl]').forEach(x => x.onclick = () => startChallenge(word, x.dataset.pl));
+    b.querySelectorAll('[data-pl]').forEach(x => x.onclick = () => startChallenge(word, x.dataset.pl, mode));
   } });
 }
-function startChallenge(word, playerId) {
-  if (playerId) { bankTime(); save(); DB.active = playerId; }
+function startChallenge(word, playerId, mode = isHang() ? 'hangman' : 'words') {
+  bankTime(); save();
+  if (playerId) DB.active = playerId;
+  P().mode = mode;
+  resetTyped();
+  if (mode === 'hangman') {
+    const h = HG();
+    if (h && !h.done && h.guessed.length) { hangFinish(false); toast(`Previous word was ${h.word.toUpperCase()}`, 2200); }
+    closeDialog();
+    newHangGame({ word, challenge: true });
+    toast(`${P().name}: hangman challenge loaded`, 2000);
+    return;
+  }
   const g = G();
   if (g && !g.done && g.guesses.length) { finish(false); toast(`Previous word was ${g.word.toUpperCase()}`, 2200); }
   closeDialog();
@@ -1123,21 +1276,23 @@ function startChallenge(word, playerId) {
   toast(`${P().name}: challenge word loaded`, 2000);
 }
 function openChallenge() {
-  openDialog('Challenge', `
+  const hang = isHang();
+  const maxLen = hang ? 12 : 7;
+  openDialog(hang ? 'Hangman challenge' : 'Challenge', `
     <div class="sec"><h3>Enter a code</h3>
-      <div class="field"><input id="cIn" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. QZKWMB" maxlength="10" aria-label="Challenge code"><span class="err" id="cErr"></span></div>
+      <div class="field"><input id="cIn" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. QZKWMB" maxlength="16" aria-label="Challenge code"><span class="err" id="cErr"></span></div>
       <button class="btn primary" id="cGo" style="width:100%">${ICON.play}Play this code</button>
     </div>
     <div class="sec"><h3>Pick a word for someone</h3>
-      <p class="small muted" style="margin-bottom:8px">Choose any 4 to 7 letter word, for example a spelling word your kids are learning.</p>
-      <div class="field"><input id="wIn" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Secret word" maxlength="7" aria-label="Secret word"><span class="err" id="wErr"></span></div>
+      <p class="small muted" style="margin-bottom:8px">Choose any 4 to ${maxLen} letter word, for example a spelling word your kids are learning.</p>
+      <div class="field"><input id="wIn" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Secret word" maxlength="${maxLen}" aria-label="Secret word"><span class="err" id="wErr"></span></div>
       <button class="btn" id="wGo" style="width:100%">Make a challenge</button>
     </div>
     <div class="sec"><h3>Same word, separate phones</h3>
       <p class="small muted">Finish a game, then tap <b>Challenge someone</b> to send that exact word to your partner or kids. Compare guesses and times afterwards.</p>
     </div>`, { after: b => {
     const go = () => {
-      const w = decodeWord(b.querySelector('#cIn').value);
+      const w = decodeWord(b.querySelector('#cIn').value, hang);
       if (!w) { b.querySelector('#cErr').textContent = "That code doesn't work. Check the letters and try again."; return; }
       startChallenge(w);
     };
@@ -1146,8 +1301,8 @@ function openChallenge() {
     const make = () => {
       const w = b.querySelector('#wIn').value.toLowerCase().trim();
       const err = b.querySelector('#wErr');
-      if (!/^[a-z]{4,7}$/.test(w)) { err.textContent = 'Use 4 to 7 letters, no spaces.'; return; }
-      if (!W.valid[w.length].has(w)) { err.textContent = "That word isn't in our list. Try another."; return; }
+      if (!new RegExp(`^[a-z]{4,${maxLen}}$`).test(w)) { err.textContent = `Use 4 to ${maxLen} letters, no spaces.`; return; }
+      if (W.valid[w.length] && !W.valid[w.length].has(w)) { err.textContent = "That word isn't in our list. Check the spelling or try another."; return; }
       showCode(w, false);
     };
     b.querySelector('#wGo').onclick = make;
@@ -1155,25 +1310,290 @@ function openChallenge() {
   } });
 }
 function checkHash() {
-  const m = /^#play-([A-Za-z]{5,8})$/.exec(location.hash);
+  const m = /^#(play|hang)-([A-Za-z]{5,13})$/.exec(location.hash);
   if (!m || !W.ready) return;
-  const w = decodeWord(m[1]);
+  const mode = m[1] === 'hang' ? 'hangman' : 'words';
+  const w = decodeWord(m[2], mode === 'hangman');
   try { history.replaceState(null, '', baseUrl()); } catch { /* ignore */ }
   if (!w) { toast("That challenge link doesn't work"); return; }
-  const g = G();
-  if (g && g.challenge && g.word === w && !g.done) return;
-  openDialog('You got a challenge', `<p>Someone sent you a ${w.length}-letter word. Who's playing it?</p>
+  const g = mode === 'hangman' ? HG() : G();
+  if (P().mode === mode && g && g.challenge && g.word === w && !g.done) return;
+  openDialog(mode === 'hangman' ? 'Hangman challenge' : 'You got a challenge', `<p>Someone sent you a ${w.length}-letter ${mode === 'hangman' ? 'hangman word' : 'word'}. Who's playing it?</p>
     <div class="btns">${DB.players.map(pl => `<button class="btn ${pl.id === DB.active ? 'primary' : ''}" data-pl="${pl.id}">${esc(pl.name)}</button>`).join('')}</div>`, { after: b => {
-    b.querySelectorAll('[data-pl]').forEach(x => x.onclick = () => startChallenge(w, x.dataset.pl));
+    b.querySelectorAll('[data-pl]').forEach(x => x.onclick = () => startChallenge(w, x.dataset.pl, mode));
   } });
 }
 window.addEventListener('hashchange', checkHash);
+
+/* ------------------------------------------------------------------ hangman */
+// The drawing has 11 parts. With fewer lives, the first parts (the gallows) are drawn from the start.
+const HANG_PARTS = ['base', 'post', 'beam', 'brace', 'rope', 'head', 'body', 'armL', 'armR', 'legL', 'legR'];
+const LIVES = [6, 8, 10];
+const LIVES_LABEL = { 6: '6 · Classic', 8: '8', 10: '10 · Easy' };
+const LIVES_DESC = {
+  6: 'The gallows is already up. Head, body, arms and legs.',
+  8: 'The rope and frame are drawn first, then the figure.',
+  10: 'The whole gallows is built first. Great for kids.'
+};
+const HANG_WIN = ['Flawless!', 'Brilliant!', 'Superb!', 'Nicely done!', 'Got it!'];
+const newHangStats = () => ({ played: 0, won: 0, streak: 0, best: 0, misses: 0, perfect: 0, bestTime: 0, hints: 0 });
+function HP(p = P()) {
+  return (p.hang ||= { prefs: { lives: 8, length: 0 }, stats: newHangStats(), game: null });
+}
+function isHang() { return P().mode === 'hangman'; }
+function HG() { return HP().game; }
+function curGame() { return isHang() ? HG() : G(); }
+function hangWrong(g) { return g.guessed.filter(c => !g.word.includes(c)).length; }
+function hangSolved(g) { return [...g.word].every(c => g.guessed.includes(c)); }
+
+function ensureGame() {
+  if (isHang()) { if (!HG()) return newHangGame(); }
+  else if (!G()) return newGame();
+  render();
+}
+function setMode(mode) {
+  if ((mode === 'hangman') === isHang()) return;
+  bankTime();
+  P().mode = mode;
+  resetTyped();
+  resumeAt = Date.now();
+  save();
+  ensureGame();
+}
+function newHangGame({ word = null, challenge = false } = {}) {
+  const p = P(), h = HP(p);
+  const len = word ? word.length : (h.prefs.length || LENGTHS[randInt(LENGTHS.length)]);
+  h.game = {
+    word: word || pickWord(p, len, p.prefs.level),
+    len, lives: h.prefs.lives, level: p.prefs.level, challenge,
+    guessed: [], hinted: [], clue: false, hints: 0,
+    elapsed: 0, done: false, won: false, started: Date.now()
+  };
+  save();
+  render();
+}
+function sizeHang() {
+  const g = HG(); if (!g) return;
+  const w = Math.min($('stage').clientWidth - 16, 460);
+  const slot = Math.max(20, Math.min(46, Math.floor((w - 6 * (g.len - 1)) / g.len)));
+  $('hangWord').style.setProperty('--slot', slot + 'px');
+}
+function renderHang(fresh = false) {
+  const g = HG(); if (!g) return;
+  const wrong = hangWrong(g);
+  const pre = HANG_PARTS.length - g.lives;
+  const shown = pre + Math.min(wrong, g.lives);
+  const svg = $('hangSvg');
+  HANG_PARTS.forEach((name, i) => {
+    const el = svg.querySelector(`[data-part="${name}"]`);
+    el.classList.toggle('on', i < shown);
+    el.classList.toggle('fresh', fresh && i === shown - 1);
+  });
+  const headShown = shown > HANG_PARTS.indexOf('head');
+  svg.classList.toggle('lost', g.done && !g.won);
+  svg.classList.toggle('won', g.done && g.won);
+  // SVG elements have no .hidden property, so toggle the attribute directly.
+  $('faceLost').toggleAttribute('hidden', !(g.done && !g.won));
+  $('faceWon').toggleAttribute('hidden', !(g.done && g.won && headShown));
+  svg.setAttribute('aria-label', `Hangman drawing: ${wrong} of ${g.lives} mistakes used`);
+
+  const left = g.lives - wrong;
+  $('hangInfo').innerHTML = g.done
+    ? (g.won ? `Saved with ${left} ${left === 1 ? 'life' : 'lives'} to spare` : 'Out of lives')
+    : `<span class="lives" aria-hidden="true">${Array.from({ length: g.lives }, (_, i) => `<i class="${i < left ? '' : 'gone'}"></i>`).join('')}</span>${left} ${left === 1 ? 'mistake' : 'mistakes'} left`;
+  $('hangWord').innerHTML = [...g.word].map(c => {
+    const got = g.guessed.includes(c);
+    const cls = got ? (g.hinted.includes(c) ? 'slot got hinted' : 'slot got') : g.done ? 'slot missed' : 'slot';
+    return `<div class="${cls}">${got || g.done ? c : ''}</div>`;
+  }).join('');
+  $('hangWord').setAttribute('aria-label', 'Word: ' + [...g.word].map(c => g.guessed.includes(c) || g.done ? c.toUpperCase() : 'blank').join(', '));
+  const misses = g.guessed.filter(c => !g.word.includes(c));
+  $('hangWrong').innerHTML = misses.length ? `<span>Wrong:</span>${misses.join(' ')}` : '&nbsp;';
+  sizeHang();
+}
+function renderHangActions() {
+  const g = HG(), p = P(), el = $('actions');
+  if (!g) return;
+  if (g.done) {
+    el.innerHTML = `<button class="chip primary" id="aNext">${ICON.next}Next word</button><button class="chip" id="aResult">See result</button>`;
+    $('aNext').onclick = () => newHangGame();
+    $('aResult').onclick = () => openHangResult();
+    return;
+  }
+  const parts = [];
+  if (p.prefs.hints) parts.push(`<button class="chip" id="aHint">${ICON.bulb}Hint${g.hints ? ` (${g.hints})` : ''}</button>`);
+  parts.push(`<button class="chip" id="aChallenge">${ICON.people}Challenge</button>`);
+  if (g.guessed.length) parts.push(`<button class="chip" id="aGiveUp">${ICON.flag}Give up</button>`);
+  el.innerHTML = parts.join('');
+  $('aHint') && ($('aHint').onclick = openHangHints);
+  $('aChallenge').onclick = openChallenge;
+  $('aGiveUp') && ($('aGiveUp').onclick = confirmHangGiveUp);
+}
+function hangKey(k) {
+  const g = HG();
+  if (g.done) { if (k === 'enter') newHangGame(); return; }
+  if (!/^[a-z]$/.test(k)) return;
+  if (g.guessed.includes(k)) { toast(`You already tried ${k.toUpperCase()}`); return; }
+  if (!g.guessed.length) resumeAt = Date.now();
+  bankTime();
+  g.guessed.push(k);
+  const hit = g.word.includes(k);
+  if (hit) buzz(10);
+  else {
+    buzz([30, 40, 30]);
+    const svg = $('hangSvg');
+    svg.classList.remove('shake'); void svg.getBoundingClientRect(); svg.classList.add('shake');
+  }
+  if (hangSolved(g)) hangFinish(true);
+  else if (hangWrong(g) >= g.lives) hangFinish(false);
+  save();
+  renderHang(!hit); renderKeyboard(); renderActions(); renderMeta();
+  if (g.done) {
+    if (g.won) toast(HANG_WIN[Math.min(hangWrong(g), HANG_WIN.length - 1)], 1600);
+    else toast(g.word.toUpperCase(), 2400);
+    setTimeout(() => { if (HG() === g && !$('dlg').open) openHangResult(); }, 1400);
+  }
+}
+function hangFinish(won) {
+  const g = HG(), p = P(), s = HP(p).stats;
+  g.done = true; g.won = won;
+  const wrong = hangWrong(g);
+  s.played++; s.hints += g.hints;
+  if (won) {
+    s.won++; s.streak++; s.best = Math.max(s.best, s.streak); s.misses += wrong;
+    if (!wrong) s.perfect++;
+    if (!g.hints && (!s.bestTime || g.elapsed < s.bestTime)) s.bestTime = g.elapsed;
+  } else s.streak = 0;
+  p.history.unshift({ m: 'hang', w: g.word, won, miss: wrong, lives: g.lives, t: g.elapsed, h: g.hints, lv: g.challenge ? 'challenge' : g.level, d: Date.now() });
+  p.history.length = Math.min(p.history.length, 60);
+}
+function openHangHints() {
+  const g = HG();
+  const missing = [...new Set(g.word)].filter(c => !g.guessed.includes(c));
+  openDialog('Need a hint?', `
+    <p class="small muted">Hints don't cost a life, but they're counted in your results.</p>
+    <div class="hint-opts">
+      <button class="btn" id="hLetter" ${missing.length > 1 ? '' : 'disabled'}>${ICON.bulb}<span>Show a letter<small>Fills in every spot where one hidden letter appears.</small></span></button>
+      <button class="btn" id="hClue" ${g.clue ? 'disabled' : ''}>${ICON.bulb}<span>Give me a clue<small>Shows what the word means, with the word hidden. Needs internet.</small></span></button>
+    </div>
+    <div id="hClueBox"></div>
+  `, { after: b => {
+    const use = () => { g.hints++; save(); renderActions(); };
+    b.querySelector('#hLetter').onclick = () => {
+      const c = missing[randInt(missing.length)];
+      if (!g.guessed.length) resumeAt = Date.now();
+      g.guessed.push(c); g.hinted.push(c); use();
+      renderHang(); renderKeyboard(); closeDialog();
+    };
+    b.querySelector('#hClue').onclick = async e => {
+      const box = b.querySelector('#hClueBox');
+      e.currentTarget.disabled = true;
+      box.innerHTML = '<div class="clue muted">Finding a clue…</div>';
+      try {
+        const list = await fetchMeaning(g.word);
+        const re = new RegExp(g.word.slice(0, Math.max(3, g.len - 2)) + '\\w*', 'gi');
+        const m = list[0];
+        box.innerHTML = `<div class="clue"><span class="pos">${esc(m.pos)}</span> ${esc(m.defs[0]).replace(re, '_____')}</div>`;
+        g.clue = true; use();
+      } catch { box.innerHTML = `<div class="clue muted">Couldn't fetch a clue (you may be offline). No hint was used.</div>`; e.currentTarget.disabled = false; }
+    };
+  } });
+}
+function confirmHangGiveUp() {
+  openDialog('Give up?', `<p>The word will be shown and this game counts as a loss, which resets ${esc(P().name)}'s hangman win streak.</p>
+    <div class="btns"><button class="btn" id="gKeep">Keep trying</button><button class="btn danger" id="gGive">Show the word</button></div>`, { after: b => {
+    b.querySelector('#gKeep').onclick = closeDialog;
+    b.querySelector('#gGive').onclick = () => { bankTime(); hangFinish(false); save(); closeDialog(); render(); openHangResult(); };
+  } });
+}
+function requestNewHang() {
+  const g = HG();
+  if (!g || g.done || !g.guessed.length) return newHangGame();
+  openDialog('Start a new word?', `<p>You're part-way through this one. Starting a new word counts this game as a loss.</p>
+    <div class="btns"><button class="btn" id="nKeep">Keep playing</button><button class="btn danger" id="nNew">New word</button></div>`, { after: b => {
+    b.querySelector('#nKeep').onclick = closeDialog;
+    b.querySelector('#nNew').onclick = () => { bankTime(); hangFinish(false); save(); closeDialog(); toast(`It was ${g.word.toUpperCase()}`, 2200); newHangGame(); };
+  } });
+}
+function hangShareText(g) {
+  const wrong = hangWrong(g);
+  const sq = DB.settings.contrast ? ['🟧', '⬛'] : ['🟩', '🟥'];
+  const head = `Hadsi Words Hangman · ${g.len} letters${g.challenge ? ' · challenge' : ''}`;
+  const res = g.won ? `Saved it with ${wrong} of ${g.lives} mistakes` : `Lost after ${g.lives} mistakes`;
+  const extra = [P().prefs.timer ? fmtTime(g.elapsed) : null, g.hints ? `${g.hints} hint${g.hints > 1 ? 's' : ''}` : 'no hints'].filter(Boolean).join(' · ');
+  return `${head}\n${res}\n${extra}\n${sq[0].repeat(g.lives - wrong)}${sq[1].repeat(wrong)}\n\nPlay this word: ${baseUrl()}#hang-${encodeWord(g.word)}`;
+}
+function openHangResult() {
+  const g = HG(), p = P(); if (!g || !g.done) return;
+  const s = HP(p).stats, wrong = hangWrong(g);
+  const marks = [...g.word].map(c => g.won ? (g.hinted.includes(c) ? 'near' : 'hit') : (g.guessed.includes(c) ? 'hit' : 'miss'));
+  openDialog(g.won ? HANG_WIN[Math.min(wrong, HANG_WIN.length - 1)] : 'Not this time', `
+    <div class="result-word">${tilesHtml(g.word, marks)}</div>
+    <p class="small muted" style="text-align:center">${g.won ? `${wrong} of ${g.lives} mistakes used` : `Out of lives after ${g.lives} mistakes`} · ${fmtTime(g.elapsed)}${g.hints ? ` · ${g.hints} hint${g.hints > 1 ? 's' : ''}` : ''}</p>
+    <div class="meaning" id="rMeaning"></div>
+    <div class="statgrid">
+      <div><b>${s.played}</b><span>Played</span></div>
+      <div><b>${s.played ? Math.round(100 * s.won / s.played) : 0}</b><span>Win %</span></div>
+      <div><b>${s.streak}</b><span>Win streak</span></div>
+      <div><b>${s.best}</b><span>Best streak</span></div>
+    </div>
+    <div class="btns">
+      <button class="btn primary" id="rNext">${ICON.next}Next word</button>
+      <button class="btn" id="rShare">${ICON.share}Share result</button>
+      <button class="btn" id="rStats">Statistics</button>
+      <button class="btn" id="rChal">${ICON.people}Challenge someone</button>
+    </div>`, { after: b => {
+    meaningInto(b.querySelector('#rMeaning'), g.word);
+    b.querySelector('#rNext').onclick = () => { closeDialog(); newHangGame(); };
+    b.querySelector('#rShare').onclick = e => shareOrCopy(hangShareText(g), e.currentTarget);
+    b.querySelector('#rStats').onclick = () => openHangStats('me');
+    b.querySelector('#rChal').onclick = () => showCode(g.word, true, 'hangman');
+  } });
+}
+function openHangStats(tab = 'me') {
+  const p = P();
+  const tabs = `<button class="chip ${tab === 'me' ? 'primary' : ''}" data-tab="me">${esc(p.name)}</button>
+    ${DB.players.length > 1 ? `<button class="chip ${tab === 'family' ? 'primary' : ''}" data-tab="family">Family</button>` : ''}
+    <button class="chip ${tab === 'history' ? 'primary' : ''}" data-tab="history">Recent words</button>`;
+  const avg = s => s.won ? (s.misses / s.won).toFixed(1) : '–';
+  let html;
+  if (tab === 'me') {
+    const s = HP(p).stats;
+    html = `<p class="small muted">Hangman stats. Switch to Words at the top to see those stats.</p>
+      <div class="statgrid">
+        <div><b>${s.played}</b><span>Played</span></div>
+        <div><b>${s.played ? Math.round(100 * s.won / s.played) : 0}</b><span>Win %</span></div>
+        <div><b>${s.streak}</b><span>Win streak</span></div>
+        <div><b>${s.best}</b><span>Best streak</span></div>
+      </div>
+      <div class="statgrid">
+        <div><b>${avg(s)}</b><span>Average mistakes</span></div>
+        <div><b>${s.perfect}</b><span>Perfect games</span></div>
+        <div><b>${s.bestTime ? fmtTime(s.bestTime) : '–'}</b><span>Fastest (no hints)</span></div>
+        <div><b>${s.hints}</b><span>Hints used</span></div>
+      </div>
+      <p class="small muted">A perfect game means no wrong letters at all.</p>`;
+  } else if (tab === 'family') {
+    const rate = s => s.won / (s.played || 1);
+    const rows = DB.players.map(pl => ({ pl, s: HP(pl).stats })).sort((a, b) => rate(b.s) - rate(a.s) || b.s.played - a.s.played);
+    html = `<div style="overflow-x:auto"><table class="fam"><thead><tr><th>Player</th><th>Won</th><th>Win %</th><th>Avg miss</th><th>Perfect</th><th>Streak</th></tr></thead><tbody>
+      ${rows.map(({ pl, s }) => `<tr><td><span class="pn"><span class="badge" style="background:var(--${pl.color})">${esc((pl.name.trim()[0] || '?').toUpperCase())}</span>${esc(pl.name)}</span></td>
+        <td>${s.won}/${s.played}</td><td>${s.played ? Math.round(100 * s.won / s.played) : 0}%</td><td>${avg(s)}</td><td>${s.perfect}</td><td>${s.streak}</td></tr>`).join('')}
+      </tbody></table></div>
+      <p class="small muted">Players may use different numbers of lives. Use <b>Challenge</b> to give everyone the same word.</p>`;
+  } else html = historyHtml(p);
+  openDialog('Hangman statistics', html, { tabs, after: b => {
+    $('dlgTabs').querySelectorAll('[data-tab]').forEach(x => x.onclick = () => openHangStats(x.dataset.tab));
+    b.querySelectorAll('.hist button').forEach(x => x.onclick = () => openMeaning(p.history[+x.dataset.i].w, () => openHangStats('history')));
+  } });
+}
 
 /* header wiring */
 $('btnHelp').onclick = openHelp;
 $('btnWho').onclick = openPlayers;
 $('btnNew').onclick = () => { if (W.ready) requestNew(); };
-$('btnStats').onclick = () => { if (G()) openStats(); };
+$('btnStats').onclick = () => { if (curGame()) openStats(); };
+$('modes').addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (b && W.ready) setMode(b.dataset.mode); });
 $('btnSettings').onclick = openSettings;
 window.addEventListener('resize', sizeBoard);
 if (window.visualViewport) visualViewport.addEventListener('resize', sizeBoard);
@@ -1189,9 +1609,10 @@ async function start() {
   try { await loadWords(); }
   catch { $('loading').textContent = "Couldn't load the word list. Check your connection and reload."; return; }
   $('loading').remove();
-  if (!P().game || (P().game.word && !W.valid[P().game.len]?.has(P().game.word))) newGame(); else render();
+  if (P().game && P().game.word && !W.valid[P().game.len]?.has(P().game.word)) P().game = null;
+  ensureGame();
   resumeAt = Date.now();
-  if (/^#play-/.test(location.hash)) checkHash();
+  if (/^#(play|hang)-/.test(location.hash)) checkHash();
   else if (!DB.seenHelp) openHelp();
 }
 window.claude?.hot?.snapshot?.(() => ({}));
@@ -1201,7 +1622,7 @@ if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !wind
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 // expose pure logic for tests
-window.__guesswork = { score, hardModeProblem, encodeWord, decodeWord };
+window.__guesswork = { score, hardModeProblem, encodeWord, decodeWord, hangWrong, hangSolved };
 })();
 </script>
 <!--ARTIFACT:PAUSE-->

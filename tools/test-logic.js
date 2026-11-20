@@ -79,6 +79,49 @@ const assert = (c, m) => { if (!c) { console.error('FAIL', m); process.exitCode 
   await page.click('dialog[open] [data-pl]');
   const w3 = await page.evaluate(() => JSON.parse(localStorage.getItem('guesswork.v1')).players[0].game);
   assert(w3.word === 'tiger' && w3.challenge, 'challenge link loads the word');
+  // ---- Hangman
+  const state = () => page.evaluate(() => JSON.parse(localStorage.getItem('guesswork.v1')).players[0]);
+  await page.click('#modes [data-mode="hangman"]');
+  assert(await page.isVisible('#hang') && !(await page.isVisible('#board')), 'hangman mode shows the drawing, hides the board');
+  let hg = (await state()).hang.game;
+  assert(hg && hg.lives === 8 && hg.guessed.length === 0, 'hangman game starts with 8 lives by default');
+  assert(await page.locator('.hp.on').count() === 3, '8 lives: base, post and beam pre-drawn');
+  const wrongLetter = [...'zqxjkvwy'].find(c => !hg.word.includes(c));
+  await page.click(`.key[data-k="${wrongLetter}"]`);
+  assert(await page.locator('.hp.on').count() === 4, 'a wrong letter draws one more part');
+  assert(await page.isDisabled(`.key[data-k="${wrongLetter}"]`), 'used letter key is disabled');
+  for (const c of new Set(hg.word)) await page.click(`.key[data-k="${c}"]`);
+  await page.waitForSelector('dialog[open] #rNext', { timeout: 5000 });
+  let hs = (await state()).hang.stats;
+  assert(hs.won === 1 && hs.misses === 1 && hs.streak === 1, 'hangman win recorded with 1 mistake');
+  assert((await state()).history[0].m === 'hang', 'hangman game in recent words');
+  // lose with classic 6 lives
+  await page.click('#dlgClose');
+  await page.click('#btnSettings');
+  await page.click('[data-seg="lives"] [data-v="6"]');
+  await page.click('#dlgClose');
+  await page.click('#aNext');
+  hg = (await state()).hang.game;
+  assert(hg.lives === 6 && await page.locator('.hp.on').count() === 5, '6 lives: whole gallows pre-drawn ' + hg.lives + ' ' + await page.locator('.hp.on').count() + ' ' + hg.guessed.join(''));
+  const wrongs = [...'abcdefghijklmnopqrstuvwxyz'].filter(c => !hg.word.includes(c)).slice(0, 6);
+  for (const c of wrongs) await page.click(`.key[data-k="${c}"]`);
+  await page.waitForSelector('dialog[open] #rNext', { timeout: 5000 });
+  assert(/Not this time/.test(await page.textContent('#dlgTitle')), 'losing after 6 mistakes');
+  assert(await page.locator('.hp.on').count() === 11 && await page.isVisible('#faceLost'), 'full figure drawn on loss');
+  hs = (await state()).hang.stats;
+  assert(hs.played === 2 && hs.streak === 0, 'hangman loss resets streak');
+  await page.click('#dlgClose');
+  // switching back keeps the words game
+  await page.click('#modes [data-mode="words"]');
+  assert(await page.isVisible('#board') && (await state()).game.word === 'tiger', 'switching back to Words resumes that game');
+  // hangman challenge link with a long custom word
+  await page.goto(url + '#hang-' + await page.evaluate(() => window.__guesswork.encodeWord('dinosaurs')));
+  await page.waitForSelector('dialog[open] [data-pl]');
+  await page.click('dialog[open] [data-pl]');
+  const after = await state();
+  assert(after.mode === 'hangman' && after.hang.game.word === 'dinosaurs' && after.hang.game.challenge, 'hangman challenge link loads a 9-letter word');
+  await page.screenshot({ path: (process.env.SHOT || path.join(root, 'dist-artifact', 'win.png')).replace('.png', '-hang.png') });
+
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
   assert(!overflow, 'no horizontal scroll');
   assert(!errors.length, 'no page errors ' + errors.join('; '));
