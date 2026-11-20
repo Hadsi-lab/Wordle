@@ -5,7 +5,7 @@ A word-guessing game for phones (iPhone and Android). Guess the hidden word in s
 It's a static web app (PWA). It needs no app store, works offline once loaded, and can be added to the home screen.
 
 ## Features
-- **Hangman mode.** Switch between *Words* and *Hangman* at the top. Choose 6 (classic), 8 or 10 (easy) mistakes, the word length, and Easy/Normal/Tricky words. It has its own stats, hints and challenge codes, and you can set a custom word of up to 12 letters.
+- **Hangman mode.** Switch between *Words* and *Hangman* at the top. Choose 6 (classic), 8 or 10 (easy) mistakes, the word length, and Easy/Normal/Tricky words. It has its own stats, hints and challenge codes, and **Set a word** lets someone type a secret word (3 to 12 letters, names included) and an optional clue, choose who's guessing and how many mistakes they get, then pass the phone over.
 - **Unlimited games.** Tap *Next word* whenever you like.
 - **Family profiles.** Each player keeps their own stats, win streak, settings and unfinished game. A *Family* table compares players.
 - **Word pools:** Easy (everyday words for kids), Normal (similar to the classic game), Tricky. **Word length:** 4, 5, 6 or 7 letters.

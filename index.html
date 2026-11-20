@@ -317,6 +317,18 @@ ul.tight { margin: 0; padding-left: 18px; display: flex; flex-direction: column;
 .hang-wrong { min-height: 1.4em; font-weight: 700; letter-spacing: .14em; color: var(--muted); text-transform: uppercase; font-size: 15px; text-align: center; }
 .hang-wrong span { letter-spacing: 0; text-transform: none; font-weight: 600; margin-right: 6px; }
 .key:disabled { cursor: default; }
+.hang-clue { font-size: 14px; text-align: center; max-width: 36ch; padding: 6px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); }
+.hang-clue b { color: var(--accent); }
+@media (max-width: 420px) { .actions { gap: 6px; } .actions .chip { padding: 7px 11px; } .actions .chip svg { display: none; } }
+.pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.pick button { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px 6px 6px; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
+.pick button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.pick .badge { width: 24px; height: 24px; font-size: 12px; }
+.secret { display: flex; gap: 8px; }
+.secret input { flex: 1; min-width: 0; }
+.handoff { text-align: center; display: flex; flex-direction: column; gap: 14px; align-items: center; padding-block: 8px; }
+.handoff .badge { width: 64px; height: 64px; font-size: 30px; }
+.handoff p { max-width: 32ch; }
 
 .loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-weight: 600; }
 
@@ -374,6 +386,7 @@ ul.tight { margin: 0; padding-left: 18px; display: flex; flex-direction: column;
       <div class="hang-info" id="hangInfo" aria-live="polite"></div>
       <div class="hang-word" id="hangWord" aria-label="Word"></div>
       <div class="hang-wrong" id="hangWrong"></div>
+      <div class="hang-clue" id="hangClue" hidden></div>
     </section>
     <div class="loading" id="loading">Loading words…</div>
   </main>
@@ -571,7 +584,7 @@ function renderMeta() {
   const p = P();
   if (isHang()) {
     const h = HG(); if (!h) return;
-    const bits = [`${h.lives} lives`, h.challenge ? 'Challenge' : LEVEL_LABEL[h.level]];
+    const bits = [`${h.lives} lives`, h.setBy ? `From ${h.setBy}` : h.challenge ? 'Challenge' : LEVEL_LABEL[h.level]];
     if (p.prefs.timer) bits.push(fmtTime(h.elapsed));
     $('meta').textContent = bits.join(' · ');
     return;
@@ -724,7 +737,9 @@ const ICON = {
   people: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></svg>',
   copy: '<svg viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>',
   plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
-  play: '<svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>'
+  play: '<svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>',
+  pencil: '<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>',
+  eye: '<svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'
 };
 function renderActions() {
   if (isHang()) return renderHangActions();
@@ -879,7 +894,7 @@ function openHelp() {
     <div><div class="example">${tilesHtml('cream', ['miss', 'near', 'miss', 'miss', 'miss'])}</div><p class="small"><b>R</b> is in the word but in a different spot.</p></div>
     <div><div class="example">${tilesHtml('shout', ['miss', 'miss', 'miss', 'miss', 'miss'])}</div><p class="small">Grey letters aren't in the word at all.</p></div>
     <div class="sec"><h3>Hangman</h3>
-      <p class="small">Switch to <b>Hangman</b> at the top. Tap letters to guess the word. Each wrong letter adds a piece to the drawing. Find every letter before it's finished. In Settings, choose 6 mistakes (classic), 8, or 10 (easy).</p>
+      <p class="small">Switch to <b>Hangman</b> at the top. Tap letters to guess the word. Each wrong letter adds a piece to the drawing. Find every letter before it's finished. In Settings, choose 6 mistakes (classic), 8, or 10 (easy). Tap <b>Set a word</b> to type your own secret word and clue, then hand the phone to someone else.</p>
     </div>
     <div class="sec"><h3>What's extra here</h3>
       <ul class="tight small">
@@ -1409,22 +1424,28 @@ function renderHang(fresh = false) {
   $('hangWord').setAttribute('aria-label', 'Word: ' + [...g.word].map(c => g.guessed.includes(c) || g.done ? c.toUpperCase() : 'blank').join(', '));
   const misses = g.guessed.filter(c => !g.word.includes(c));
   $('hangWrong').innerHTML = misses.length ? `<span>Wrong:</span>${misses.join(' ')}` : '&nbsp;';
+  const clue = $('hangClue');
+  clue.hidden = !g.clueText;
+  clue.innerHTML = g.clueText ? `<b>Clue${g.setBy ? ' from ' + esc(g.setBy) : ''}:</b> ${esc(g.clueText)}` : '';
   sizeHang();
 }
 function renderHangActions() {
   const g = HG(), p = P(), el = $('actions');
   if (!g) return;
   if (g.done) {
-    el.innerHTML = `<button class="chip primary" id="aNext">${ICON.next}Next word</button><button class="chip" id="aResult">See result</button>`;
+    el.innerHTML = `<button class="chip primary" id="aNext">${ICON.next}Next word</button><button class="chip" id="aSet">${ICON.pencil}Set a word</button><button class="chip" id="aResult">Result</button>`;
     $('aNext').onclick = () => newHangGame();
+    $('aSet').onclick = openSetWord;
     $('aResult').onclick = () => openHangResult();
     return;
   }
   const parts = [];
   if (p.prefs.hints) parts.push(`<button class="chip" id="aHint">${ICON.bulb}Hint${g.hints ? ` (${g.hints})` : ''}</button>`);
+  parts.push(`<button class="chip" id="aSet">${ICON.pencil}Set a word</button>`);
   parts.push(`<button class="chip" id="aChallenge">${ICON.people}Challenge</button>`);
   if (g.guessed.length) parts.push(`<button class="chip" id="aGiveUp">${ICON.flag}Give up</button>`);
   el.innerHTML = parts.join('');
+  $('aSet').onclick = openSetWord;
   $('aHint') && ($('aHint').onclick = openHangHints);
   $('aChallenge').onclick = openChallenge;
   $('aGiveUp') && ($('aGiveUp').onclick = confirmHangGiveUp);
@@ -1466,6 +1487,90 @@ function hangFinish(won) {
   } else s.streak = 0;
   p.history.unshift({ m: 'hang', w: g.word, won, miss: wrong, lives: g.lives, t: g.elapsed, h: g.hints, lv: g.challenge ? 'challenge' : g.level, d: Date.now() });
   p.history.length = Math.min(p.history.length, 60);
+}
+/* Set a word: someone types a secret word on this phone, then hands it over. */
+function openSetWord() {
+  const setter = P();
+  const others = DB.players.filter(pl => pl.id !== setter.id);
+  let guesser = (others[0] || setter).id;
+  let lives = HP(DB.players.find(pl => pl.id === guesser)).prefs.lives;
+  const pickHtml = () => DB.players.map(pl => `<button data-pl="${pl.id}" aria-pressed="${pl.id === guesser}"><span class="badge" style="background:var(--${pl.color})">${esc((pl.name.trim()[0] || '?').toUpperCase())}</span>${esc(pl.name)}</button>`).join('');
+  openDialog('Set a hangman word', `
+    <p class="small muted">Type a secret word, choose who's guessing, then hand them the phone. Names and spelling words are fine.</p>
+    <div class="field"><span class="small"><b>Secret word</b></span>
+      <div class="secret"><input id="swWord" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="12" placeholder="3 to 12 letters" aria-label="Secret word"><button class="btn" id="swShow" aria-pressed="false">${ICON.eye}Show</button></div>
+      <span class="err" id="swErr"></span>
+    </div>
+    <div class="field"><span class="small"><b>Clue</b> <span class="muted">(optional)</span></span>
+      <input id="swClue" class="name" maxlength="60" autocomplete="off" placeholder="e.g. An animal with a very long neck" aria-label="Clue">
+    </div>
+    <div class="field"><span class="small"><b>Who's guessing?</b></span><div class="pick" id="swWho">${pickHtml()}</div>
+      ${DB.players.length < 2 ? '<span class="small muted">Tip: add each family member in Players so their wins are kept separately.</span>' : ''}</div>
+    <div class="field"><span class="small"><b>Mistakes allowed</b></span>
+      <div class="seg" id="swLives">${LIVES.map(n => `<button data-v="${n}" aria-pressed="${n === lives}">${LIVES_LABEL[n]}</button>`).join('')}</div>
+    </div>
+    <button class="btn primary" id="swGo">${ICON.play}Start the game</button>
+  `, { after: b => {
+    const word = b.querySelector('#swWord'), err = b.querySelector('#swErr');
+    setTimeout(() => word.focus(), 50);
+    b.querySelector('#swShow').onclick = e => {
+      const show = word.type === 'password';
+      word.type = show ? 'text' : 'password';
+      e.currentTarget.setAttribute('aria-pressed', show);
+      e.currentTarget.lastChild.textContent = show ? 'Hide' : 'Show';
+    };
+    word.addEventListener('input', () => {
+      const w = word.value.toLowerCase().replace(/[^a-z]/g, '');
+      err.style.color = '';
+      err.textContent = w.length >= 4 && w.length <= 7 && W.valid[w.length] && !W.valid[w.length].has(w)
+        ? "Not in our dictionary. That's fine for a name, but check the spelling." : '';
+      if (err.textContent) err.style.color = 'var(--muted)';
+    });
+    b.querySelector('#swWho').onclick = e => {
+      const btn = e.target.closest('[data-pl]'); if (!btn) return;
+      guesser = btn.dataset.pl;
+      b.querySelectorAll('#swWho [data-pl]').forEach(x => x.setAttribute('aria-pressed', x === btn));
+      lives = HP(DB.players.find(pl => pl.id === guesser)).prefs.lives;
+      b.querySelectorAll('#swLives button').forEach(x => x.setAttribute('aria-pressed', +x.dataset.v === lives));
+    };
+    b.querySelector('#swLives').onclick = e => {
+      const btn = e.target.closest('button'); if (!btn) return;
+      lives = +btn.dataset.v;
+      b.querySelectorAll('#swLives button').forEach(x => x.setAttribute('aria-pressed', x === btn));
+    };
+    const go = () => {
+      const raw = word.value.trim();
+      const w = raw.toLowerCase();
+      err.style.color = '';
+      if (!/^[a-z]{3,12}$/i.test(raw)) { err.textContent = 'Use 3 to 12 letters, with no spaces, numbers or symbols.'; word.focus(); return; }
+      startSetWord(w, guesser, lives, b.querySelector('#swClue').value.trim(), setter);
+    };
+    b.querySelector('#swGo').onclick = go;
+    word.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  } });
+}
+function startSetWord(word, guesserId, lives, clueText, setter) {
+  bankTime(); save();
+  DB.active = guesserId;
+  const p = P();
+  p.mode = 'hangman';
+  resetTyped();
+  const h = HG();
+  if (h && !h.done && h.guessed.length) hangFinish(false);
+  HP(p).game = {
+    word, len: word.length, lives, level: p.prefs.level, challenge: true,
+    setBy: setter.id === p.id ? '' : setter.name, clueText,
+    guessed: [], hinted: [], clue: false, hints: 0,
+    elapsed: 0, done: false, won: false, started: Date.now()
+  };
+  save();
+  render();
+  // Hand-off screen: the word is never shown, so it's safe to pass the phone over now.
+  openDialog('Pass the phone', `<div class="handoff">
+      <span class="badge" style="background:var(--${p.color})">${esc((p.name.trim()[0] || '?').toUpperCase())}</span>
+      <p>Hand the phone to <b>${esc(p.name)}</b>. Their ${word.length}-letter word is ready, with ${lives} mistakes allowed${clueText ? ' and a clue' : ''}.</p>
+      <button class="btn primary" id="hoGo">${ICON.play}I'm ${esc(p.name)}, let's play</button>
+    </div>`, { after: b => { b.querySelector('#hoGo').onclick = () => { resumeAt = Date.now(); closeDialog(); }; } });
 }
 function openHangHints() {
   const g = HG();

@@ -122,6 +122,27 @@ const assert = (c, m) => { if (!c) { console.error('FAIL', m); process.exitCode 
   assert(after.mode === 'hangman' && after.hang.game.word === 'dinosaurs' && after.hang.game.challenge, 'hangman challenge link loads a 9-letter word');
   await page.screenshot({ path: (process.env.SHOT || path.join(root, 'dist-artifact', 'win.png')).replace('.png', '-hang.png') });
 
+  // ---- Set a word on this phone, then hand it over
+  await page.click('#aSet');
+  await page.fill('#swWord', 'gir4ffe');
+  await page.click('#swGo');
+  assert(/3 to 12 letters/.test(await page.textContent('#swErr')), 'set a word: rejects non-letters');
+  await page.fill('#swWord', 'Giraffe');
+  await page.fill('#swClue', 'An animal with a very long neck');
+  await page.click('#swLives [data-v="10"]');
+  await page.click('#swGo');
+  await page.waitForSelector('#hoGo');
+  assert(!/giraffe/i.test(await page.textContent('#dlgBody')), 'hand-off screen does not reveal the word');
+  await page.click('#hoGo');
+  let sg = (await state()).hang.game;
+  assert(sg.word === 'giraffe' && sg.lives === 10 && sg.challenge, 'set word starts with chosen lives');
+  assert(/very long neck/.test(await page.textContent('#hangClue')), 'clue is shown under the word');
+  assert(await page.locator('.hp.on').count() === 1, '10 lives: only the base is pre-drawn');
+  for (const c of 'girafe') await page.click(`.key[data-k="${c}"]`);
+  await page.waitForSelector('dialog[open] #rNext', { timeout: 5000 });
+  assert(/Flawless/.test(await page.textContent('#dlgTitle')), 'set word can be solved');
+  await page.click('#dlgClose');
+
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
   assert(!overflow, 'no horizontal scroll');
   assert(!errors.length, 'no page errors ' + errors.join('; '));
